@@ -31,9 +31,9 @@ class OperationWorker(QThread):
         elif self.operation_type == "work_mode":
             mode_label = self.kwargs.get("mode_label")
             mode_value = self.kwargs.get("mode_value")
-            self.log_message.emit(f"Switching to {mode_label}({mode_value})...")
+            self.log_message.emit(f"Switching workmode to {mode_label}({mode_value})...")
             Operation.set_work_mode(mode_label, mode_value)
-            self.log_message.emit(f"Work mode switched to: {mode_label}({mode_value})\n")
+            self.log_message.emit(f"Workmode switched to: {mode_label}({mode_value})\n")
         self.finished.emit()
 
 class Operation:
