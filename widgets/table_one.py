@@ -35,9 +35,6 @@ class TableOne(BaseTable):
         header.setStretchLastSection(True)
         header.setSectionResizeMode(QHeaderView.Interactive)
 
-        # 调整列宽
-        self.adjust_columns(self.COLUMN_WIDTHS)
-
     def update_row(self, row_data):
         """更新表格行数据"""
         row = self.rowCount()

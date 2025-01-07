@@ -59,7 +59,7 @@ class MainWindow(QMainWindow):
         self.spinner.hide()
 
         # 设置窗口属性
-        self.resize(800, 600)
+        self.resize(1500, 1000)
         self.setWindowTitle("多功能表格示例")
 
     def setup_connections(self):

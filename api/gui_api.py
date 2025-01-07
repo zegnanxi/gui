@@ -16,8 +16,9 @@ class GuiApi:
         values['prop_6666666666666666666666663'] = random.randint(8, 15)
         values['prop_4'] = random.randint(10, 20)
         values['prop_5'] = random.randint(0, 10)
-        values['prop_6'] = random.randint(0, 10)
-        values['prop_7'] = random.randint(0, 10)
+        values['prop_6'] = '1,2,3,4,5,6,7,8,9,10'
+        values['prop_777777777777abadafddasfadsfadsfadsf'] = random.randint(
+            0, 10)
         values['prop_8'] = random.randint(0, 10)
         values['prop_9'] = random.randint(0, 10)
         values['prop_10'] = random.randint(0, 10)

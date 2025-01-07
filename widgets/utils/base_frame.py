@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QLineEdit, QPlainTextEdit, QToolButton, QSplitter, QTableView, QStyledItemDelegate)
-from PySide6.QtGui import QFontMetrics, QIcon, QStandardItemModel, QStandardItem
+from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem
 from PySide6.QtCore import Qt, QSize, Slot
 
 from .progress_indicator import QProgressIndicator
@@ -65,7 +65,11 @@ class BaseFrame(QWidget):
             self.fetcher_thread.quit()
             self.fetcher_thread.wait()
 
-        # self.tableWidget.setRowCount(0)
+        # 清除表格数据
+        self.tableWidget.model.setRowCount(0)
+        # 清除控制台日志
+        self.consoleWidget.clearConsoleLog()
+
         self._show_loading_state()
 
         # 创建并启动新的数据获取线程
@@ -148,6 +152,12 @@ class BaseTableModel(QStandardItemModel):
              for item in self.columns]
         )
 
+    def data(self, index, role=Qt.DisplayRole):
+        # 添加对齐角色的处理
+        if role == Qt.TextAlignmentRole:
+            return Qt.AlignCenter
+        return super().data(index, role)
+
     def flags(self, index):
         if not index.isValid():
             return Qt.NoItemFlags
@@ -168,14 +178,73 @@ class BaseTable(QTableView):
     def __init__(self, columns):
         super().__init__()
         self.columns = columns
-        self.model = BaseTableModel(columns[1:])  # 移除第一列，因为会作为垂直表头
+        self.model = BaseTableModel(columns[1:])
         self._init_table()
+        self._apply_styles()
+
+    def _apply_styles(self):
+        # 设置表格整体样式
+        self.setStyleSheet("""
+            QTableView {
+                background-color: #ffffff;
+                gridline-color: #e0e0e0;
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                selection-background-color: #e8f0fe;
+                selection-color: #000000;
+            }
+
+            QTableView::item {
+                padding: 5px;
+                border: none;
+                alignment: center;
+            }
+
+            QHeaderView {
+                background-color: #ffffff;
+            }
+
+            QHeaderView::section {
+                background-color: #f8f9fa;
+                padding: 6px;
+                border: none;
+                border-right: 1px solid #e0e0e0;
+                border-bottom: 1px solid #e0e0e0;
+                font-weight: bold;
+                color: #444444;
+            }
+
+            QHeaderView::section:vertical {
+                background-color: #f8f9fa;
+                border-right: 1px solid #d0d0d0;
+            }
+
+            QHeaderView::section:horizontal {
+                background-color: #f8f9fa;
+            }
+
+            /* 添加左上角单元格样式 */
+            QTableCornerButton::section {
+                background-color: #f8f9fa;
+                border: none;
+                border-right: 1px solid #e0e0e0;
+                border-bottom: 1px solid #e0e0e0;
+            }
+        """)
 
     def _init_table(self):
         self.setModel(self.model)
         self._setup_table_properties()
         self._setup_delegates()
-        self.adjust_columns()
+
+        header = self.horizontalHeader()
+        for i in range(self.model.columnCount() - 1):
+            header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+            # self.model.setHeaderData(i, Qt.Horizontal, Qt.AlignCenter, Qt.TextAlignmentRole)
+
+        # 最后一列（操作列）保持固定宽度
+        header.setSectionResizeMode(self.model.columnCount() - 1, QHeaderView.ResizeMode.Fixed)
+        self.setColumnWidth(self.model.columnCount() - 1, 200)
 
     def _setup_table_properties(self):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -184,13 +253,34 @@ class BaseTable(QTableView):
 
         # 显示垂直表头并设置其属性
         self.verticalHeader().setVisible(True)
-        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.verticalHeader().setDefaultSectionSize(30)  # 设置行高
+        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        self.verticalHeader().setDefaultSectionSize(40)  # 将行高从30增加到40
         self.verticalHeader().setMinimumWidth(80)  # 设置最小宽度
 
         header = self.horizontalHeader()
-        header.setStretchLastSection(True)
-        header.setSectionResizeMode(QHeaderView.Interactive)
+        # header.setStretchLastSection(True)
+
+        # 设置表格属性
+        self.setShowGrid(True)
+        self.setGridStyle(Qt.SolidLine)
+        self.setAlternatingRowColors(True)
+        self.setWordWrap(False)
+        self.setCornerButtonEnabled(False)
+
+        # 设置表头属性
+        header = self.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignCenter)
+        header.setHighlightSections(False)
+
+        v_header = self.verticalHeader()
+        v_header.setDefaultAlignment(Qt.AlignCenter)
+        v_header.setHighlightSections(False)
+        v_header.setMinimumWidth(60)
+        v_header.setMaximumWidth(80)
+
+        # 设置选择行为
+        self.setSelectionMode(QTableView.SingleSelection)
+        self.setSelectionBehavior(QTableView.SelectRows)
 
     def _setup_delegates(self):
         line_edit_delegate = LineEditDelegate(self.columns, self)
@@ -202,20 +292,6 @@ class BaseTable(QTableView):
                 self.setItemDelegateForColumn(col, operation_delegate)
             else:
                 self.setItemDelegateForColumn(col, line_edit_delegate)
-
-    def adjust_columns(self, custom_widths=None):
-        font_metrics = QFontMetrics(self.font())
-        padding = 20
-
-        for col in range(self.model.columnCount()):
-            if custom_widths and col in custom_widths:
-                width = custom_widths[col]
-            else:
-                header_text = self.model.headerData(col, Qt.Horizontal)
-                width = font_metrics.horizontalAdvance(header_text) + padding
-
-            if col != 0:  # 不调整第一列（已固定）
-                self.setColumnWidth(col, width)
 
     def _update_row_data(self, row: int, lane: int, row_data: dict):
         # # 更新lane列
@@ -325,6 +401,17 @@ class LineEditDelegate(QStyledItemDelegate):
 
         editor = QLineEdit(parent)
         editor.setAlignment(Qt.AlignCenter)
+        editor.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #c0c0c0;
+                border-radius: 3px;
+                padding: 2px 4px;
+                background-color: #ffffff;
+            }
+            QLineEdit:focus {
+                border: 1px solid #007AFF;
+            }
+        """)
         return editor
 
     def setEditorData(self, editor, index):
@@ -353,29 +440,48 @@ class OperationDelegate(QStyledItemDelegate):
         # 创建容器widget
         widget = QWidget(parent)
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(5, 2, 5, 2)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(8)
 
-        # 创建Get按钮
+        # 修改按钮样式和大小策略
         get_btn = QToolButton(widget)
         get_btn.setText("Get")
         get_btn.clicked.connect(lambda: self._handle_get_clicked(index.row()))
-
+        get_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        get_btn.setFixedHeight(24)
         # 创建Set按钮
         set_btn = QToolButton(widget)
         set_btn.setText("Set")
         set_btn.clicked.connect(lambda: self._handle_set_clicked(index.row()))
-
+        set_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        set_btn.setFixedHeight(24)
         # 添加按钮到布局
-        layout.addWidget(get_btn)
-        layout.addWidget(set_btn)
+        layout.addWidget(get_btn, 1)
+        layout.addWidget(set_btn, 1)
         layout.addStretch()
 
-        # 直接设置为永久widget
-        # self.parent().setIndexWidget(index, widget)
+        widget.setStyleSheet("""
+            QToolButton {
+                background-color: #666666;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 4px 12px;
+                min-width: 60px;
+                height: 24px;
+            }
+            QToolButton:hover {
+                background-color: #808080;
+            }
+            QToolButton:pressed {
+                background-color: #4d4d4d;
+            }
+        """)
+
         return widget
 
     def sizeHint(self, option, index):
-        return QSize(150, 35)
+        return QSize(180, 32)
 
     def _handle_get_clicked(self, row):
         """处理Get按钮点击事件"""
