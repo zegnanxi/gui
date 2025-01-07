@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
-    QLineEdit, QPlainTextEdit, QToolButton, QSplitter, QTableView, QStyledItemDelegate, QAbstractItemView)
-from PySide6.QtGui import QFontMetrics, QIcon, QStandardItemModel
+    QLineEdit, QPlainTextEdit, QToolButton, QSplitter, QTableView, QStyledItemDelegate)
+from PySide6.QtGui import QFontMetrics, QIcon, QStandardItemModel, QStandardItem
 from PySide6.QtCore import Qt, QSize, Slot
 
 from .progress_indicator import QProgressIndicator
@@ -24,24 +24,39 @@ class BaseFrame(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.mainLayout = QVBoxLayout()
         self.fetcher_thread = None
+        self._init_ui()
+        self._init_connections()
 
-        # 添加spinner
-        self.spinner = QProgressIndicator(self)
-        self.spinner.hide()
-
+    def _init_ui(self):
+        self.mainLayout = QVBoxLayout()
+        self.spinner = self._create_spinner()
         self.consoleWidget = ConsoleWidget()
         self.tableWidget = BaseTable(self.COLUMNS)
 
-        self.splitter = QSplitter()
-        self.splitter.setOrientation(Qt.Orientation.Vertical)
-        self.splitter.addWidget(self.tableWidget)
-        self.splitter.addWidget(self.consoleWidget)
-        self.splitter.setSizes([200, 100])
-
+        self.splitter = self._create_splitter()
         self.mainLayout.addWidget(self.splitter)
         self.setLayout(self.mainLayout)
+
+    def _create_spinner(self):
+        spinner = QProgressIndicator(self)
+        spinner.hide()
+        return spinner
+
+    def _create_splitter(self):
+        splitter = QSplitter()
+        splitter.setOrientation(Qt.Orientation.Vertical)
+        splitter.addWidget(self.tableWidget)
+        splitter.addWidget(self.consoleWidget)
+        splitter.setSizes([200, 100])
+        return splitter
+
+    def _init_connections(self):
+        if self.fetcher_thread:
+            self.fetcher_thread.row_ready.connect(self.tableWidget.update_row)
+            self.fetcher_thread.log_message.connect(
+                self.consoleWidget.console.appendPlainText)
+            self.fetcher_thread.finished.connect(self._hide_loading_state)
 
     def load_data(self):
         """基类的数据加载方法"""
@@ -150,118 +165,40 @@ class BaseTableModel(QStandardItemModel):
 
 
 class BaseTable(QTableView):
-    def __init__(self, COLUMNS):
+    def __init__(self, columns):
         super().__init__()
-        self.COLUMNS = COLUMNS
-        self.model = BaseTableModel(COLUMNS)
+        self.columns = columns
+        self.model = BaseTableModel(columns[1:])  # 移除第一列，因为会作为垂直表头
+        self._init_table()
+
+    def _init_table(self):
         self.setModel(self.model)
-
-        self._init_table_properties()
-        self._init_table_appearance()
+        self._setup_table_properties()
         self._setup_delegates()
+        self.adjust_columns()
 
-        # 只创建第一列的冻结视图
-        self.frozenTableView = QTableView(self)
-        self.frozenTableView.setModel(self.model)
-        self.frozenTableView.verticalHeader().hide()
-
-        # 只设置第一列为冻结列
-        self._setup_frozen_view(self.frozenTableView, [0])
-
-        # 连接垂直滚动信号
-        self.verticalScrollBar().valueChanged.connect(
-            self.frozenTableView.verticalScrollBar().setValue)
-
-        self.updateFrozenTableGeometry()
-
-    def _setup_frozen_view(self, view, columns):
-        """设置冻结列视图的通用属性"""
-        view.setFocusPolicy(Qt.NoFocus)
-        view.verticalHeader().hide()
-        view.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-
-        # 只显示指定列
-        for i in range(self.model.columnCount()):
-            if i not in columns:
-                view.hideColumn(i)
-            else:
-                view.setColumnWidth(i, self.columnWidth(i))
-
-        view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        view.setStyleSheet('''
-            QTableView { border: none; background-color: #f0f0f0; }
-        ''')
-
-    def updateFrozenTableGeometry(self):
-        """更新冻结列的几何位置"""
-        if not self.model:
-            return
-
-        # 更新左侧冻结列位置
-        self.frozenTableView.setGeometry(
-            self.verticalHeader().width() + self.frameWidth(),
-            self.frameWidth(),
-            self.columnWidth(0),
-            self.viewport().height() + self.horizontalHeader().height()
-        )
-
-        # 确保冻结列在最上层显示
-        self.frozenTableView.raise_()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.updateFrozenTableGeometry()
-
-    def moveCursor(self, cursorAction, modifiers):
-        current = super().moveCursor(cursorAction, modifiers)
-        if cursorAction == QAbstractItemView.MoveLeft and current.column() > 0:
-            if self.visualRect(current).topLeft().x() < self.frozenTableView.columnWidth(0):
-                newValue = self.horizontalScrollBar().value() + \
-                    self.visualRect(current).topLeft().x() - \
-                    self.frozenTableView.columnWidth(0)
-                self.horizontalScrollBar().setValue(newValue)
-        return current
-
-    def scrollTo(self, index, hint=QAbstractItemView.EnsureVisible):
-        if index.column() > 0:
-            super().scrollTo(index, hint)
-
-    def _init_table_properties(self):
+    def _setup_table_properties(self):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setSelectionBehavior(QTableView.SelectRows)
         self.setHorizontalScrollMode(QTableView.ScrollPerPixel)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
-    def _init_table_appearance(self):
-        self.verticalHeader().setVisible(False)
+        # 显示垂直表头并设置其属性
+        self.verticalHeader().setVisible(True)
+        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.verticalHeader().setDefaultSectionSize(30)  # 设置行高
+        self.verticalHeader().setMinimumWidth(80)  # 设置最小宽度
 
         header = self.horizontalHeader()
         header.setStretchLastSection(True)
         header.setSectionResizeMode(QHeaderView.Interactive)
 
-        # 设置列宽
-        self.setColumnWidth(0, 50)
-
-        # 调整其他列宽
-        self.adjust_columns()
-
-    def setFrozenColumn(self, column):
-        """冻结指定列"""
-        self.horizontalHeader().setSectionResizeMode(column, QHeaderView.Fixed)
-        self.setItemDelegateForColumn(
-            column, LineEditDelegate(self.COLUMNS, self))
-        # 设置水平滚动条策略
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.setHorizontalScrollMode(QTableView.ScrollPerPixel)
-
     def _setup_delegates(self):
-        line_edit_delegate = LineEditDelegate(self.COLUMNS, self)
+        line_edit_delegate = LineEditDelegate(self.columns, self)
         operation_delegate = OperationDelegate(self)
 
         # 为每列设置适当的delegate
-        for col in range(len(self.COLUMNS)):
-            if col == len(self.COLUMNS) - 1:  # 最后一列（操作列）
+        for col in range(len(self.columns) - 1):
+            if col == len(self.columns) - 2:  # 最后一列（操作列）
                 self.setItemDelegateForColumn(col, operation_delegate)
             else:
                 self.setItemDelegateForColumn(col, line_edit_delegate)
@@ -280,38 +217,52 @@ class BaseTable(QTableView):
             if col != 0:  # 不调整第一列（已固定）
                 self.setColumnWidth(col, width)
 
-    def update_row(self, ret: bool, lane: int, row_data: dict):
-        if not ret:
-            print(f'dev op failed. lane:{lane}')
-            return
-
-        row = self._find_row_by_lane(lane)
-        if row == -1:
-            row = self.model.rowCount()
-            self.model.insertRow(row)
-
-        # 更新lane列
-        self.model.setData(self.model.index(row, 0), f'lane{lane}')
+    def _update_row_data(self, row: int, lane: int, row_data: dict):
+        # # 更新lane列
+        # self.model.setData(self.model.index(row, 0), f'lane{lane}')
 
         # 更新数据列
-        for col, header in enumerate(self.COLUMNS[1:-1], 1):
+        for col, header in enumerate(self.columns[1:-1], 1):
             value_key = header.removesuffix(
                 '.rw') if header.endswith('.rw') else header
             value = row_data.get(value_key)
             if value is not None:
-                self.model.setData(self.model.index(row, col), str(value))
+                self.model.setData(self.model.index(row, col - 1), str(value))
 
         # 为操作列创建按钮
-        last_column = len(self.COLUMNS) - 1
+        last_column = len(self.columns) - 2
         operation_delegate = self.itemDelegateForColumn(last_column)
         if isinstance(operation_delegate, OperationDelegate):
             editor = operation_delegate.createEditor(
                 self.viewport(), None, self.model.index(row, last_column))
             self.setIndexWidget(self.model.index(row, last_column), editor)
+        else:
+            raise ValueError(f'operation_delegate is not OperationDelegate: {
+                             operation_delegate}')
+
+    def update_row(self, ret: bool, lane: int, row_data: dict):
+        try:
+            if not ret:
+                raise ValueError(f'device operation failed, lane:{lane}')
+
+            row = self._find_or_create_row(lane)
+            self._update_row_data(row, lane, row_data)
+            # 设置垂直表头的文本
+            self.model.setVerticalHeaderItem(row, QStandardItem(f'lane{lane}'))
+
+        except Exception as e:
+            raise e
+
+    def _find_or_create_row(self, lane: int) -> int:
+        row = self._find_row_by_lane(lane)
+        if row == -1:
+            row = self.model.rowCount()
+            self.model.insertRow(row)
+        return row
 
     def _find_row_by_lane(self, lane: int) -> int:
         for row in range(self.model.rowCount()):
-            if self.model.data(self.model.index(row, 0)) == f'lane{lane}':
+            if self.model.verticalHeaderItem(row).text() == f'lane{lane}':
                 return row
         return -1
 
@@ -323,30 +274,39 @@ class BaseTable(QTableView):
 class ConsoleWidget(QWidget):
     def __init__(self):
         super().__init__()
+        self._init_ui()
+        self._init_connections()
 
+    def _init_ui(self):
         self.mainLayout = QHBoxLayout()
+        self.console = self._create_console()
+        self.clearBtn = self._create_clear_button()
+        self._setup_layout()
 
-        self.console = QPlainTextEdit()
-        self.console.setReadOnly(True)
-        self.clearBtn = QToolButton()
-        self.clearBtn.setToolTip('Clear console 1og')
+    def _create_console(self):
+        console = QPlainTextEdit()
+        console.setReadOnly(True)
+        return console
+
+    def _create_clear_button(self):
+        clearBtn = QToolButton()
+        clearBtn.setToolTip('Clear console log')
         clearIcon = QIcon()
         clearIcon.addFile(u":/icon/image/icon/remove.ppg",
                           QSize(), QIcon.Normal, QIcon.Off)
-        self.clearBtn.setIcon(clearIcon)
-        self.clearBtn.setIconSize(QSize(15, 15))
+        clearBtn.setIcon(clearIcon)
+        clearBtn.setIconSize(QSize(15, 15))
+        return clearBtn
 
-        self.btnLayout = QVBoxLayout()
-        self.btnLayout.addWidget(self.clearBtn)
-        self.btnLayout.addWidget(QLabel())
-        self.mainLayout.addLayout(self.btnLayout)
+    def _setup_layout(self):
+        btnLayout = QVBoxLayout()
+        btnLayout.addWidget(self.clearBtn)
+        btnLayout.addWidget(QLabel())
+        self.mainLayout.addLayout(btnLayout)
         self.mainLayout.addWidget(self.console)
-
         self.setLayout(self.mainLayout)
 
-        self.bind()
-
-    def bind(self):
+    def _init_connections(self):
         self.clearBtn.clicked.connect(self.clearConsoleLog)
 
     @Slot()
@@ -411,7 +371,7 @@ class OperationDelegate(QStyledItemDelegate):
         layout.addStretch()
 
         # 直接设置为永久widget
-        self.parent().setIndexWidget(index, widget)
+        # self.parent().setIndexWidget(index, widget)
         return widget
 
     def sizeHint(self, option, index):
@@ -422,7 +382,6 @@ class OperationDelegate(QStyledItemDelegate):
         view = self.parent()
         model = view.model
         lane = int(model.data(model.index(row, 0)).replace('lane', ''))
-        print(f'lane:{lane}')
         # 获取BaseFrame实例
         base_frame = self._get_base_frame(view)
         if base_frame:
@@ -443,7 +402,7 @@ class OperationDelegate(QStyledItemDelegate):
 
         # 收集可编辑列的数据
         row_data = {}
-        for col, header in enumerate(view.COLUMNS[1:-1], 1):
+        for col, header in enumerate(view.columns[1:-1], 1):
             if header.endswith('.rw'):
                 value = model.data(model.index(row, col))
                 if value:  # 只收集非空值
