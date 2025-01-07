@@ -22,9 +22,9 @@ class TableOne(BaseTable):
 
     def _init_table_properties(self):
         """初始化表格基本属性"""
-        self.setColumnCount(len(self.COLUMNS))
-        self.setHorizontalHeaderLabels(self.COLUMNS)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # self.setColumnCount(len(self.COLUMNS))
+        # self.setHorizontalHeaderLabels(self.COLUMNS)
+        # self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     def _init_table_appearance(self):
         """初始化表格外观"""

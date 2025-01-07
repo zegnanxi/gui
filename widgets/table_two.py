@@ -7,7 +7,7 @@ class TableTwo(BaseFrame):
     COLUMNS_ALL = ["", "driver_mode.rw", "prop_1", "prop_2ls.ls.rw", "prop_2hs.hs.rw", "prop_6666666666666666666666663",
                    "prop_4", "prop_5.ls", "prop_6.rw", "prop_7", "prop_8", "prop_9", "prop_10", "prop_11",
                    "prop_12", "Operation"]
-    LANE_COUNT = 8
+    LANE_COUNT = 4
 
     def __init__(self, side):
         self.side = side
@@ -16,7 +16,7 @@ class TableTwo(BaseFrame):
         super().__init__()
 
     def _create_dev_op_thread(self, op='get', lane=None, *args):
-        if lane:
+        if lane is not None:
             lane_list = [lane]
         else:
             lane_list = range(self.LANE_COUNT)
