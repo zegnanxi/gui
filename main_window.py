@@ -14,6 +14,11 @@ class MainWindow(QMainWindow):
         self.setup_ui()
         self.setup_connections()
 
+    # def _handle_tab_close(self, index: int):
+    #     """处理标签页关闭事件"""
+    #     print(f'Tab {index} closed')
+    #     self.tables[index].cleanup()
+
     def setup_ui(self):
         """初始化UI组件"""
         central_widget = QWidget()
@@ -23,6 +28,8 @@ class MainWindow(QMainWindow):
         # 创建标签页控件
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabsClosable(True)
+        # self.tab_widget.tabCloseRequested.connect(self._handle_tab_close)
+
         main_layout.addWidget(self.tab_widget)
 
         # 创建按钮页（第一个标签页）

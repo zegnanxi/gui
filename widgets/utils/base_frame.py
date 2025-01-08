@@ -27,6 +27,8 @@ class BaseFrame(QWidget):
         self.fetcher_thread = None
         self._init_ui(side, model)
         self._init_connections()
+        # 添加标记来跟踪是否已清理
+        self._cleaned_up = False
 
     def _init_ui(self, side: str, model: str):
         self.spinner = self._create_spinner()
@@ -127,12 +129,27 @@ class BaseFrame(QWidget):
                 self.height() // 2 - self.spinner.height() // 2
             )
 
-    def closeEvent(self, event):
-        """处理窗口关闭事件"""
-        if self.fetcher_thread and self.fetcher_thread.isRunning():
-            self.fetcher_thread.quit()
-            self.fetcher_thread.wait()
-        super().closeEvent(event)
+    def cleanup(self):
+        """清理资源的方法"""
+        if not self._cleaned_up:
+            print('Cleaning up resources...')
+            # # 停止正在运行的线程
+            if self.fetcher_thread and self.fetcher_thread.isRunning():
+                self.fetcher_thread.quit()
+                self.fetcher_thread.wait()
+
+            # # 清理表格中的所有编辑器
+            # if hasattr(self, 'tableWidget'):
+            #     for row in range(self.tableWidget.model.rowCount()):
+            #         for col in range(self.tableWidget.model.columnCount()):
+            #             editor = self.tableWidget.indexWidget(
+            #                 self.tableWidget.model.index(row, col))
+            #             if editor:
+            #                 print(f'row:{row}, col:{col}, editor:{editor}')
+            #                 editor.deleteLater()
+            #                 del editor
+
+            self._cleaned_up = True
 
 
 class BaseTableModel(QStandardItemModel):
@@ -262,6 +279,7 @@ class BaseTable(QTableView):
         self.setModel(self.model)
         self._setup_table_properties()
         self._setup_delegates()
+        self._setup_selection_handling()
 
         COLUMN_WIDTHS = {
             self.model.columnCount() - 1: 200   # 操作列
@@ -338,33 +356,38 @@ class BaseTable(QTableView):
                 raise ValueError(f'operation_delegate is not OperationDelegate: {operation_delegate}')
 
     def update_row(self, ret: bool, lane: int, row_data: dict):
-        try:
-            if not ret:
-                raise ValueError(f'device operation failed, lane:{lane}')
+        if not ret:
+            raise ValueError(f'device operation failed, lane:{lane}')
 
-            row = self._find_or_create_row(lane)
-            self._update_row_data(row, lane, row_data)
-            # 设置垂直表头的文本
-            self.model.setVerticalHeaderItem(row, QStandardItem(f'lane{lane}'))
-
-        except Exception as e:
-            raise e
+        self._update_row_data(self._find_or_create_row(lane), lane, row_data)
 
     def _find_or_create_row(self, lane: int) -> int:
-        row = self._find_row_by_lane(lane)
-        if row == -1:
-            row = self.model.rowCount()
-            self.model.insertRow(row)
-        return row
-
-    def _find_row_by_lane(self, lane: int) -> int:
         for row in range(self.model.rowCount()):
             if self.model.verticalHeaderItem(row).text() == f'lane{lane}':
                 return row
-        return -1
+
+        row = self.model.rowCount()
+        self.model.insertRow(row)
+        self.model.setVerticalHeaderItem(row, QStandardItem(f'lane{lane}'))
+        return row
 
     def create_dev_op_thread(self):
         raise NotImplementedError("Subclasses must implement create_dev_op_thread()")
+
+    def _setup_selection_handling(self):
+        """设置选择变化的处理"""
+        def on_selection_changed(selected, deselected):
+            # 更新所有可见编辑器的背景色
+            for row in range(self.model.rowCount()):
+                for col in range(self.model.columnCount() - 1):  # 跳过最后一列（操作列）
+                    index = self.model.index(row, col)
+                    editor = self.indexWidget(index)
+                    if editor and isinstance(editor, QLineEdit):
+                        delegate = self.itemDelegateForColumn(col)
+                        if isinstance(delegate, LineEditDelegate):
+                            delegate.update_background(editor, index)
+
+        self.selectionModel().selectionChanged.connect(on_selection_changed)
 
 
 class LineEditDelegate(QStyledItemDelegate):
@@ -381,39 +404,36 @@ class LineEditDelegate(QStyledItemDelegate):
         index.model().setData(index, text, Qt.DisplayRole)
         self._update_editor_state(editor, modified=True)
 
+    def update_background(self, editor, index):
+        """更新编辑器的背景色"""
+        view = self.parent()
+        bg_color = "#E8F0FE" if view.selectionModel().isSelected(index) else "#FFFFFF"
+        editor.setStyleSheet(f"""
+            QLineEdit {{
+                border: 1px solid #DADCE0;
+                border-radius: 4px;
+                margin: 1px;
+                background-color: {bg_color};
+            }}
+            QLineEdit:focus {{
+                border: 1px solid #007AFF;
+            }}
+            QLineEdit[modified="true"] {{
+                color: #007AFF;
+            }}
+        """)
+
     def createEditor(self, parent, option, index):
         editor = QLineEdit(parent)
         editor.setAlignment(Qt.AlignCenter)
 
-        # 获取父视图
-        view = self.parent()
-
-        # 创建一个更新背景色的函数
-        def update_background():
-            is_selected = view.selectionModel().isSelected(index)
-            bg_color = "#E8F0FE" if is_selected else "#FFFFFF"
-            editor.setStyleSheet(f"""
-                QLineEdit {{
-                    border: 1px solid #DADCE0;
-                    border-radius: 4px;
-                    margin: 1px;
-                    background-color: {bg_color};
-                }}
-                QLineEdit:focus {{
-                    border: 1px solid #007AFF;
-                }}
-                QLineEdit[modified="true"] {{
-                    color: #007AFF;
-                }}
-            """)
-
-        # 连接选择变化信号
-        view.selectionModel().selectionChanged.connect(update_background)
-        editor.textChanged.connect(lambda text: self._handle_text_changed(editor, index, text))
-
         # 初始设置背景色
-        update_background()
+        self.update_background(editor, index)
 
+        # 存储index供后续使用
+        editor.setProperty("current_index", index)
+
+        editor.textChanged.connect(lambda text: self._handle_text_changed(editor, index, text))
         return editor
 
     def setEditorData(self, editor, index):
