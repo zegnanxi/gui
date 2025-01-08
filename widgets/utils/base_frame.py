@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QLineEdit, QPlainTextEdit, QToolButton, QSplitter, QTableView, QStyledItemDelegate)
-from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem
+from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont
 from PySide6.QtCore import Qt, QSize, Slot
 
 from .progress_indicator import QProgressIndicator
@@ -22,32 +22,43 @@ class BaseFrame(QWidget):
                 results.append(item)
         return results
 
-    def __init__(self):
+    def __init__(self, side: str, model: str):
         super().__init__()
         self.fetcher_thread = None
-        self._init_ui()
+        self._init_ui(side, model)
         self._init_connections()
 
-    def _init_ui(self):
-        self.mainLayout = QVBoxLayout()
+    def _init_ui(self, side: str, model: str):
         self.spinner = self._create_spinner()
         self.consoleWidget = ConsoleWidget()
         self.tableWidget = BaseTable(self.COLUMNS)
 
-        self.splitter = self._create_splitter()
-        self.mainLayout.addWidget(self.splitter)
-        self.setLayout(self.mainLayout)
+        font = QFont()
+        font.setBold(True)
+        label = QLabel(f'{side} - {model}')
+        label.setFont(font)
+
+        upperLayout = QVBoxLayout()
+        upperLayout.addWidget(label)
+        upperLayout.addWidget(self.tableWidget)
+
+        upperWidget = QWidget()
+        upperWidget.setLayout(upperLayout)
+
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(self._create_splitter(upperWidget, self.consoleWidget))
+        self.setLayout(mainLayout)
 
     def _create_spinner(self):
         spinner = QProgressIndicator(self)
         spinner.hide()
         return spinner
 
-    def _create_splitter(self):
+    def _create_splitter(self, upperWidget, lowerWidget):
         splitter = QSplitter()
         splitter.setOrientation(Qt.Orientation.Vertical)
-        splitter.addWidget(self.tableWidget)
-        splitter.addWidget(self.consoleWidget)
+        splitter.addWidget(upperWidget)
+        splitter.addWidget(lowerWidget)
         splitter.setSizes([200, 100])
         return splitter
 
@@ -70,10 +81,10 @@ class BaseFrame(QWidget):
         # 清除控制台日志
         self.consoleWidget.clearConsoleLog()
 
-        self._show_loading_state()
+        self.show_loading_state()
 
         # 创建并启动新的数据获取线程
-        self.fetcher_thread = self._create_dev_op_thread()
+        self.fetcher_thread = self.create_dev_op_thread()
         if self.fetcher_thread:
             self.fetcher_thread.row_ready.connect(
                 self.tableWidget.update_row)
@@ -83,7 +94,7 @@ class BaseFrame(QWidget):
                 self._hide_loading_state)
             self.fetcher_thread.start()
 
-    def _show_loading_state(self):
+    def show_loading_state(self):
         """显示加载状态"""
         # 获取主窗口
         main_window = self.window()
@@ -99,13 +110,13 @@ class BaseFrame(QWidget):
 
         # 启动spinner动画
         self.spinner.start()
-        self.setEnabled(False)
+        main_window.setEnabled(False)
 
     def _hide_loading_state(self):
         """隐藏加载状态"""
         self.spinner.stop()
         self.spinner.hide()
-        self.setEnabled(True)
+        self.window().setEnabled(True)
 
     def resizeEvent(self, event):
         """处理窗口大小改变事件"""
@@ -122,22 +133,6 @@ class BaseFrame(QWidget):
             self.fetcher_thread.quit()
             self.fetcher_thread.wait()
         super().closeEvent(event)
-
-
-class LineEditTableWidgetItem(QWidget):
-    def __init__(self, readOnly):
-        super(LineEditTableWidgetItem, self).__init__()
-        layout = QHBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.lineEdit = QLineEdit()
-        self.lineEdit.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.lineEdit.setReadOnly(readOnly)
-        if readOnly:
-            self.lineEdit.setStyleSheet('background-color: grey;')
-        self.lineEdit.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.lineEdit)
 
 
 class BaseTableModel(QStandardItemModel):
@@ -162,10 +157,6 @@ class BaseTableModel(QStandardItemModel):
         if not index.isValid():
             return Qt.NoItemFlags
 
-        # 第一列和最后一列（操作列）特殊处理
-        if index.column() == 0 or index.column() == self.columnCount() - 1:
-            return Qt.ItemIsEnabled | Qt.ItemIsSelectable
-
         # 检查列是否可编辑
         column_name = self.columns[index.column()]
         if column_name.endswith('.rw'):
@@ -177,8 +168,8 @@ class BaseTableModel(QStandardItemModel):
 class BaseTable(QTableView):
     def __init__(self, columns):
         super().__init__()
-        self.columns = columns
-        self.model = BaseTableModel(columns[1:])
+        self.columns = columns[1:]
+        self.model = BaseTableModel(self.columns)
         self._init_table()
         self._apply_styles()
 
@@ -186,65 +177,96 @@ class BaseTable(QTableView):
         # 设置表格整体样式
         self.setStyleSheet("""
             QTableView {
-                background-color: #ffffff;
-                gridline-color: #e0e0e0;
-                border: 1px solid #d0d0d0;
+                background-color: #FFFFFF;
+                gridline-color: #E0E0E0;
+                border: 1px solid #D0D0D0;
                 border-radius: 4px;
-                selection-background-color: #e8f0fe;
+                selection-background-color: #E8F0FE;
                 selection-color: #000000;
             }
 
+            QTableView::item:selected {
+                background-color: #E8F0FE;
+                color: #000000;
+            }
+
+            QTableView::item:focus {
+                background-color: #D2E3FC;
+                color: #000000;
+            }
+
             QTableView::item {
-                padding: 5px;
+                background-color: #FFFFFF;
                 border: none;
                 alignment: center;
             }
 
             QHeaderView {
-                background-color: #ffffff;
+                background-color: #FFFFFF;
             }
 
             QHeaderView::section {
-                background-color: #f8f9fa;
+                background-color: #F8F9FA;
                 padding: 6px;
                 border: none;
-                border-right: 1px solid #e0e0e0;
-                border-bottom: 1px solid #e0e0e0;
+                border-right: 1px solid #E0E0E0;
+                border-bottom: 1px solid #E0E0E0;
                 font-weight: bold;
                 color: #444444;
             }
 
             QHeaderView::section:vertical {
-                background-color: #f8f9fa;
-                border-right: 1px solid #d0d0d0;
+                background-color: #F8F9FA;
+                border-right: 1px solid #D0D0D0;
             }
 
             QHeaderView::section:horizontal {
-                background-color: #f8f9fa;
+                background-color: #DADCE0;
+                border-right: 1px solid #FFFFFF;
+                border-left: 1px solid #FFFFFF;
             }
 
-            /* 添加左上角单元格样式 */
             QTableCornerButton::section {
-                background-color: #f8f9fa;
-                border: none;
-                border-right: 1px solid #e0e0e0;
-                border-bottom: 1px solid #e0e0e0;
+                background-color: #DADCE0;
+                border-right: 1px solid #FFFFFF;
             }
         """)
+
+    def _adjust_columns(self, custom_widths=None):
+        """
+        调整表格列宽：
+        - 所有列默认根据表头文字长度设置宽度
+        - custom_widths中指定的列使用固定宽度
+        """
+        minimum_width = 80
+        header = self.horizontalHeader()
+        font_metrics = QFontMetrics(self.font())
+        padding = 25  # 文字两侧的padding
+
+        for column in range(self.model.columnCount()):
+            if custom_widths and column in custom_widths:
+                # 使用指定的固定宽度
+                width = custom_widths[column]
+            else:
+                # 从model中获取表头文字
+                header_text = self.model.headerData(column, Qt.Horizontal)
+                if header_text:
+                    width = font_metrics.horizontalAdvance(str(header_text)) + padding
+                else:
+                    width = minimum_width  # 默认宽度
+
+            header.setSectionResizeMode(column, QHeaderView.Fixed)
+            self.setColumnWidth(column, max(width, minimum_width))
 
     def _init_table(self):
         self.setModel(self.model)
         self._setup_table_properties()
         self._setup_delegates()
 
-        header = self.horizontalHeader()
-        for i in range(self.model.columnCount() - 1):
-            header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
-            # self.model.setHeaderData(i, Qt.Horizontal, Qt.AlignCenter, Qt.TextAlignmentRole)
-
-        # 最后一列（操作列）保持固定宽度
-        header.setSectionResizeMode(self.model.columnCount() - 1, QHeaderView.ResizeMode.Fixed)
-        self.setColumnWidth(self.model.columnCount() - 1, 200)
+        COLUMN_WIDTHS = {
+            self.model.columnCount() - 1: 200   # 操作列
+        }
+        self._adjust_columns(COLUMN_WIDTHS)
 
     def _setup_table_properties(self):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -252,69 +274,68 @@ class BaseTable(QTableView):
         self.setHorizontalScrollMode(QTableView.ScrollPerPixel)
 
         # 显示垂直表头并设置其属性
-        self.verticalHeader().setVisible(True)
-        self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
-        self.verticalHeader().setDefaultSectionSize(40)  # 将行高从30增加到40
-        self.verticalHeader().setMinimumWidth(80)  # 设置最小宽度
+        v_header = self.verticalHeader()
+        v_header.setVisible(True)
+        v_header.setDefaultAlignment(Qt.AlignCenter)
+        v_header.setHighlightSections(False)
+        v_header.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        v_header.setDefaultSectionSize(40)  # 行高40
+        v_header.setMinimumWidth(60)
 
+        # 设置表头属性
         header = self.horizontalHeader()
         # header.setStretchLastSection(True)
+        header.setDefaultAlignment(Qt.AlignCenter)
+        header.setHighlightSections(False)
+        header.setFixedHeight(25)  # 设置水平表头高度为30
+        header.setMinimumWidth(100)
 
         # 设置表格属性
         self.setShowGrid(True)
         self.setGridStyle(Qt.SolidLine)
-        self.setAlternatingRowColors(True)
+        self.setAlternatingRowColors(False)
         self.setWordWrap(False)
         self.setCornerButtonEnabled(False)
-
-        # 设置表头属性
-        header = self.horizontalHeader()
-        header.setDefaultAlignment(Qt.AlignCenter)
-        header.setHighlightSections(False)
-
-        v_header = self.verticalHeader()
-        v_header.setDefaultAlignment(Qt.AlignCenter)
-        v_header.setHighlightSections(False)
-        v_header.setMinimumWidth(60)
-        v_header.setMaximumWidth(80)
 
         # 设置选择行为
         self.setSelectionMode(QTableView.SingleSelection)
         self.setSelectionBehavior(QTableView.SelectRows)
 
-    def _setup_delegates(self):
-        line_edit_delegate = LineEditDelegate(self.columns, self)
-        operation_delegate = OperationDelegate(self)
+        # 添加以下设置来禁用自动滚动
+        self.setAutoScroll(False)
 
+    def _setup_delegates(self):
         # 为每列设置适当的delegate
+        self.setItemDelegateForColumn(len(self.columns) - 1, OperationDelegate(self))
+
+        line_edit_delegate = LineEditDelegate(self)
         for col in range(len(self.columns) - 1):
-            if col == len(self.columns) - 2:  # 最后一列（操作列）
-                self.setItemDelegateForColumn(col, operation_delegate)
-            else:
-                self.setItemDelegateForColumn(col, line_edit_delegate)
+            self.setItemDelegateForColumn(col, line_edit_delegate)
 
     def _update_row_data(self, row: int, lane: int, row_data: dict):
-        # # 更新lane列
-        # self.model.setData(self.model.index(row, 0), f'lane{lane}')
-
-        # 更新数据列
-        for col, header in enumerate(self.columns[1:-1], 1):
-            value_key = header.removesuffix(
-                '.rw') if header.endswith('.rw') else header
+        for col, header in enumerate(self.columns[0:-1]):
+            value_key = header.removesuffix('.rw') if header.endswith('.rw') else header
             value = row_data.get(value_key)
             if value is not None:
-                self.model.setData(self.model.index(row, col - 1), str(value))
+                self.model.setData(self.model.index(row, col), str(value))
+                if header.endswith('.rw'):
+                    data_delegate = self.itemDelegateForColumn(col)
+                    editor = self.indexWidget(self.model.index(row, col))
+                    if editor is None:
+                        editor = data_delegate.createEditor(self.viewport(), None, self.model.index(row, col))
+                        self.setIndexWidget(self.model.index(row, col), editor)
+                    data_delegate.setEditorData(editor, self.model.index(row, col))
 
-        # 为操作列创建按钮
-        last_column = len(self.columns) - 2
-        operation_delegate = self.itemDelegateForColumn(last_column)
-        if isinstance(operation_delegate, OperationDelegate):
-            editor = operation_delegate.createEditor(
-                self.viewport(), None, self.model.index(row, last_column))
-            self.setIndexWidget(self.model.index(row, last_column), editor)
-        else:
-            raise ValueError(f'operation_delegate is not OperationDelegate: {
-                             operation_delegate}')
+        last_column = len(self.columns) - 1
+        last_index = self.model.index(row, last_column)
+        editor = self.indexWidget(last_index)
+        if editor is None:
+            operation_delegate = self.itemDelegateForColumn(last_column)
+            if isinstance(operation_delegate, OperationDelegate):
+                editor = operation_delegate.createEditor(self.viewport(), None, last_index)
+                self.setIndexWidget(last_index, editor)
+            else:
+                raise ValueError(f'operation_delegate is not OperationDelegate: {operation_delegate}')
 
     def update_row(self, ret: bool, lane: int, row_data: dict):
         try:
@@ -342,9 +363,164 @@ class BaseTable(QTableView):
                 return row
         return -1
 
-    def _create_dev_op_thread(self):
-        raise NotImplementedError(
-            "Subclasses must implement _create_dev_op_thread()")
+    def create_dev_op_thread(self):
+        raise NotImplementedError("Subclasses must implement create_dev_op_thread()")
+
+
+class LineEditDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def _update_editor_state(self, editor, modified=False):
+        """更新编辑器的状态和样式"""
+        editor.setProperty("modified", modified)
+        editor.style().unpolish(editor)
+        editor.style().polish(editor)
+
+    def _handle_text_changed(self, editor, index, text):
+        index.model().setData(index, text, Qt.DisplayRole)
+        self._update_editor_state(editor, modified=True)
+
+    def createEditor(self, parent, option, index):
+        editor = QLineEdit(parent)
+        editor.setAlignment(Qt.AlignCenter)
+
+        # 获取父视图
+        view = self.parent()
+
+        # 创建一个更新背景色的函数
+        def update_background():
+            is_selected = view.selectionModel().isSelected(index)
+            bg_color = "#E8F0FE" if is_selected else "#FFFFFF"
+            editor.setStyleSheet(f"""
+                QLineEdit {{
+                    border: 1px solid #DADCE0;
+                    border-radius: 4px;
+                    margin: 1px;
+                    background-color: {bg_color};
+                }}
+                QLineEdit:focus {{
+                    border: 1px solid #007AFF;
+                }}
+                QLineEdit[modified="true"] {{
+                    color: #007AFF;
+                }}
+            """)
+
+        # 连接选择变化信号
+        view.selectionModel().selectionChanged.connect(update_background)
+        editor.textChanged.connect(lambda text: self._handle_text_changed(editor, index, text))
+
+        # 初始设置背景色
+        update_background()
+
+        return editor
+
+    def setEditorData(self, editor, index):
+        value = index.model().data(index, Qt.DisplayRole)
+        editor.setText(str(value) if value is not None else "")
+        self._update_editor_state(editor, modified=False)
+
+
+class OperationDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def createEditor(self, parent, option, index):
+        # 创建容器widget
+        widget = QWidget(parent)
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(8)
+
+        # 修改按钮样式和大小策略
+        get_btn = QToolButton(widget)
+        get_btn.setText("Get")
+        get_btn.clicked.connect(lambda: self._handle_get_clicked(index.row()))
+        get_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        # 创建Set按钮
+        set_btn = QToolButton(widget)
+        set_btn.setText("Set")
+        set_btn.clicked.connect(lambda: self._handle_set_clicked(index.row()))
+        set_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        # 添加按钮到布局
+        layout.addWidget(get_btn, 1)
+        layout.addWidget(set_btn, 1)
+        layout.addStretch()
+
+        widget.setStyleSheet("""
+            QToolButton {
+                background-color: lightgrey;
+                color: black;
+                border: 1px solid grey;
+                border-radius: 4px;
+                padding: 5px;
+            }
+            QToolButton:hover {
+                background-color: #79CDCD;
+            }
+            QToolButton:pressed {
+                background-color: #4D4D4D;
+            }
+        """)
+
+        return widget
+
+    def _handle_get_clicked(self, row):
+        """处理Get按钮点击事件"""
+        view = self.parent()
+        model = view.model
+
+        # 选中当前行
+        view.selectRow(row)
+
+        # 从垂直表头获取lane值
+        lane = int(model.verticalHeaderItem(row).text().replace('lane', ''))
+        # 获取BaseFrame实例
+        base_frame = self._get_base_frame(view)
+        if base_frame:
+            base_frame.show_loading_state()
+            base_frame.fetcher_thread = base_frame.create_dev_op_thread('get', lane)
+            base_frame.fetcher_thread.row_ready.connect(view.update_row)
+            base_frame.fetcher_thread.log_message.connect(base_frame.consoleWidget.console.appendPlainText)
+            base_frame.fetcher_thread.finished.connect(base_frame._hide_loading_state)
+            base_frame.fetcher_thread.start()
+
+    def _handle_set_clicked(self, row):
+        """处理Set按钮点击事件"""
+        view = self.parent()
+        model = view.model
+
+        # 选中当前行
+        view.selectRow(row)
+
+        # 收集可编辑列的数据
+        row_data = {}
+        for col, header in enumerate(model.columns[:-1]):
+            if header.endswith('.rw'):
+                value = model.data(model.index(row, col))
+                if value:  # 只收集非空值
+                    row_data[header.removesuffix('.rw')] = value
+
+        # 从垂直表头获取lane值
+        lane = int(model.verticalHeaderItem(row).text().replace('lane', ''))
+
+        # 获取BaseFrame实例
+        base_frame = self._get_base_frame(view)
+        if base_frame:
+            base_frame.show_loading_state()
+            base_frame.fetcher_thread = base_frame.create_dev_op_thread('set', lane, row_data)
+            base_frame.fetcher_thread.row_ready.connect(view.update_row)
+            base_frame.fetcher_thread.log_message.connect(base_frame.consoleWidget.console.appendPlainText)
+            base_frame.fetcher_thread.finished.connect(base_frame._hide_loading_state)
+            base_frame.fetcher_thread.start()
+
+    def _get_base_frame(self, widget):
+        """获取BaseFrame实例的辅助方法"""
+        parent = widget.parent()
+        while parent and not isinstance(parent, BaseFrame):
+            parent = parent.parent()
+        return parent
 
 
 class ConsoleWidget(QWidget):
@@ -388,150 +564,3 @@ class ConsoleWidget(QWidget):
     @Slot()
     def clearConsoleLog(self):
         self.console.clear()
-
-
-class LineEditDelegate(QStyledItemDelegate):
-    def __init__(self, columns, parent=None):
-        super().__init__(parent)
-        self.columns = columns
-
-    def createEditor(self, parent, option, index):
-        if not self._is_editable(index):
-            return None
-
-        editor = QLineEdit(parent)
-        editor.setAlignment(Qt.AlignCenter)
-        editor.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #c0c0c0;
-                border-radius: 3px;
-                padding: 2px 4px;
-                background-color: #ffffff;
-            }
-            QLineEdit:focus {
-                border: 1px solid #007AFF;
-            }
-        """)
-        return editor
-
-    def setEditorData(self, editor, index):
-        value = index.model().data(index, Qt.DisplayRole)
-        editor.setText(str(value) if value is not None else "")
-
-    def setModelData(self, editor, model, index):
-        model.setData(index, editor.text(), Qt.EditRole)
-
-    def _is_editable(self, index):
-        column_name = self.columns[index.column()]
-        return column_name.endswith('.rw')
-
-    def paint(self, painter, option, index):
-        if not self._is_editable(index):
-            # 非可编辑单元格使用灰色背景
-            option.backgroundBrush = Qt.gray
-        super().paint(painter, option, index)
-
-
-class OperationDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-    def createEditor(self, parent, option, index):
-        # 创建容器widget
-        widget = QWidget(parent)
-        layout = QHBoxLayout(widget)
-        layout.setContentsMargins(4, 2, 4, 2)
-        layout.setSpacing(8)
-
-        # 修改按钮样式和大小策略
-        get_btn = QToolButton(widget)
-        get_btn.setText("Get")
-        get_btn.clicked.connect(lambda: self._handle_get_clicked(index.row()))
-        get_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        get_btn.setFixedHeight(24)
-        # 创建Set按钮
-        set_btn = QToolButton(widget)
-        set_btn.setText("Set")
-        set_btn.clicked.connect(lambda: self._handle_set_clicked(index.row()))
-        set_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        set_btn.setFixedHeight(24)
-        # 添加按钮到布局
-        layout.addWidget(get_btn, 1)
-        layout.addWidget(set_btn, 1)
-        layout.addStretch()
-
-        widget.setStyleSheet("""
-            QToolButton {
-                background-color: #666666;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 4px 12px;
-                min-width: 60px;
-                height: 24px;
-            }
-            QToolButton:hover {
-                background-color: #808080;
-            }
-            QToolButton:pressed {
-                background-color: #4d4d4d;
-            }
-        """)
-
-        return widget
-
-    def sizeHint(self, option, index):
-        return QSize(180, 32)
-
-    def _handle_get_clicked(self, row):
-        """处理Get按钮点击事件"""
-        view = self.parent()
-        model = view.model
-        lane = int(model.data(model.index(row, 0)).replace('lane', ''))
-        # 获取BaseFrame实例
-        base_frame = self._get_base_frame(view)
-        if base_frame:
-            base_frame._show_loading_state()
-            base_frame.fetcher_thread = base_frame._create_dev_op_thread(
-                'get', lane)
-            base_frame.fetcher_thread.row_ready.connect(view.update_row)
-            base_frame.fetcher_thread.log_message.connect(
-                base_frame.consoleWidget.console.appendPlainText)
-            base_frame.fetcher_thread.finished.connect(
-                base_frame._hide_loading_state)
-            base_frame.fetcher_thread.start()
-
-    def _handle_set_clicked(self, row):
-        """处理Set按钮点击事件"""
-        view = self.parent()
-        model = view.model
-
-        # 收集可编辑列的数据
-        row_data = {}
-        for col, header in enumerate(view.columns[1:-1], 1):
-            if header.endswith('.rw'):
-                value = model.data(model.index(row, col))
-                if value:  # 只收集非空值
-                    row_data[header.removesuffix('.rw')] = value
-
-        lane = int(model.data(model.index(row, 0)).replace('lane', ''))
-
-        # 获取BaseFrame实例
-        base_frame = self._get_base_frame(view)
-        if base_frame:
-            base_frame._show_loading_state()
-            base_frame.fetcher_thread = base_frame._create_dev_op_thread(
-                'set', lane, row_data)
-            base_frame.fetcher_thread.row_ready.connect(view.update_row)
-            base_frame.fetcher_thread.log_message.connect(
-                base_frame.consoleWidget.console.appendPlainText)
-            base_frame.fetcher_thread.finished.connect(
-                base_frame._hide_loading_state)
-            base_frame.fetcher_thread.start()
-
-    def _get_base_frame(self, widget):
-        """获取BaseFrame实例的辅助方法"""
-        parent = widget.parent()
-        while parent and not isinstance(parent, BaseFrame):
-            parent = parent.parent()
-        return parent

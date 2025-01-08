@@ -1,5 +1,4 @@
-from PySide6.QtWidgets import (QTableWidgetItem, QHeaderView,
-                               QSizePolicy)
+from PySide6.QtWidgets import (QTableWidgetItem, QHeaderView)
 from PySide6.QtCore import Qt
 from widgets.utils.base_frame import BaseTable
 

@@ -14,9 +14,9 @@ class TableTwo(BaseFrame):
         self.side = side
         self.COLUMNS = self._process_fields(self.COLUMNS_ALL, self.side)
         # print(f'self.side:{self.side}, self.COLUMNS:{self.COLUMNS}')
-        super().__init__()
+        super().__init__(self.side, 'Fir')
 
-    def _create_dev_op_thread(self, op='get', lane=None, *args):
+    def create_dev_op_thread(self, op='get', lane=None, *args):
         if lane is not None:
             lane_list = [lane]
         else:

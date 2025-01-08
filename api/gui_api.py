@@ -9,7 +9,7 @@ class GuiApi:
         time.sleep(1)
 
         values = {}
-        values['driver_mode'] = lane
+        values['driver_mode'] = 10 + lane
         values['prop_1'] = random.randint(0, 5)
         values['prop_2ls'] = random.randint(0, 10)
         values['prop_2hs'] = random.randint(0, 10)

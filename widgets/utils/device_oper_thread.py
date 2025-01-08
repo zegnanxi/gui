@@ -24,4 +24,6 @@ class DeviceOperThread(QThread):
         self.log_message.emit(f'begin:{lane}')
         api_method = getattr(GuiApi, self.command)
         ret, values = api_method(self.side, lane, *self.extra_args)
+        self.log_message.emit(f'end:{lane}')
+        # print(f'ret:{ret}, values:{values}')
         return ret, values
