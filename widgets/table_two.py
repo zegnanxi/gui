@@ -8,11 +8,31 @@ class TableTwo(BaseFrame):
                    "prop_6666666666666666666666663",
                    "prop_4", "prop_5.ls", "prop_6.rw", "prop_777777777777abadafddasfadsfadsfadsf", "prop_8", "prop_9", "prop_10", "prop_11",
                    "prop_12", "Operation"]
+
+    COLUMNS_ALL = [
+        {'index': 'lane', 'type': 'vertical header'},
+        {'index': 'driver_mode', 'editable': True},
+        {'index': 'prop_1'},
+        {'index': 'prop_2ls', 'editable': True, 'side': 'Line Side'},
+        {'index': 'prop_2hs', 'editable': True, 'side': 'Host Side'},
+        {'index': 'prop_6666666666666666666666663', 'type': 'date'},
+        {'index': 'prop_4'},
+        {'index': 'prop_5', 'side': 'Line Side'},
+        {'index': 'prop_6', 'type': 'str', 'editable': True},
+        {'index': 'prop_777777777777abadafddasfadsfadsfadsf'},
+        {'index': 'prop_8'},
+        {'index': 'prop_9'},
+        {'index': 'prop_10'},
+        {'index': 'prop_11'},
+        {'index': 'prop_12'},
+        {'index': 'Operation', 'type': 'btn', 'width': 200}
+    ]
+
     LANE_COUNT = 4
 
     def __init__(self, side):
         self.side = side
-        self.COLUMNS = self._process_fields(self.COLUMNS_ALL, self.side)
+        self.COLUMNS = self._process_columns(self.COLUMNS_ALL, self.side)
         # print(f'self.side:{self.side}, self.COLUMNS:{self.COLUMNS}')
         super().__init__(self.side, 'Fir')
 

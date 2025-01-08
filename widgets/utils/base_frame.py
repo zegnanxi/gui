@@ -9,16 +9,16 @@ from .progress_indicator import QProgressIndicator
 
 class BaseFrame(QWidget):
     @staticmethod
-    def _process_fields(fields, side):
+    def _process_columns(columns, side):
         results = []
-        for item in fields:
-            if '.hs' in item:
-                if side == 'Host Side':
-                    results.append(item.replace('.hs', ''))
-            elif '.ls' in item:
-                if side == 'Line Side':
-                    results.append(item.replace('.ls', ''))
+        for item in columns:
+            # 检查是否有side属性
+            if isinstance(item, dict) and 'side' in item:
+                # 如果指定了side且匹配当前side，则添加
+                if item['side'] == side:
+                    results.append(item)
             else:
+                # 对于没有side属性的项目，直接添加
                 results.append(item)
         return results
 
@@ -27,8 +27,6 @@ class BaseFrame(QWidget):
         self.fetcher_thread = None
         self._init_ui(side, model)
         self._init_connections()
-        # 添加标记来跟踪是否已清理
-        self._cleaned_up = False
 
     def _init_ui(self, side: str, model: str):
         self.spinner = self._create_spinner()
@@ -129,28 +127,6 @@ class BaseFrame(QWidget):
                 self.height() // 2 - self.spinner.height() // 2
             )
 
-    def cleanup(self):
-        """清理资源的方法"""
-        if not self._cleaned_up:
-            print('Cleaning up resources...')
-            # # 停止正在运行的线程
-            if self.fetcher_thread and self.fetcher_thread.isRunning():
-                self.fetcher_thread.quit()
-                self.fetcher_thread.wait()
-
-            # # 清理表格中的所有编辑器
-            # if hasattr(self, 'tableWidget'):
-            #     for row in range(self.tableWidget.model.rowCount()):
-            #         for col in range(self.tableWidget.model.columnCount()):
-            #             editor = self.tableWidget.indexWidget(
-            #                 self.tableWidget.model.index(row, col))
-            #             if editor:
-            #                 print(f'row:{row}, col:{col}, editor:{editor}')
-            #                 editor.deleteLater()
-            #                 del editor
-
-            self._cleaned_up = True
-
 
 class BaseTableModel(QStandardItemModel):
     def __init__(self, columns):
@@ -159,25 +135,20 @@ class BaseTableModel(QStandardItemModel):
         self._init_headers()
 
     def _init_headers(self):
-        self.setHorizontalHeaderLabels(
-            [item.removesuffix('.rw') if item.endswith('.rw') else item
-             for item in self.columns]
-        )
-
-    def data(self, index, role=Qt.DisplayRole):
-        # 添加对齐角色的处理
-        if role == Qt.TextAlignmentRole:
-            return Qt.AlignCenter
-        return super().data(index, role)
+        # 修改表头标签处理逻辑
+        self.setHorizontalHeaderLabels([
+            item['index'].removesuffix('.rw') if isinstance(item, dict) else item.removesuffix('.rw')
+            for item in self.columns
+        ])
 
     def flags(self, index):
         if not index.isValid():
             return Qt.NoItemFlags
 
         # 检查列是否可编辑
-        column_name = self.columns[index.column()]
-        if column_name.endswith('.rw'):
-            return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
+        # column_info = self.columns[index.column()]
+        # if isinstance(column_info, dict) and column_info.get('editable', False):
+        #     return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
 
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
@@ -185,6 +156,7 @@ class BaseTableModel(QStandardItemModel):
 class BaseTable(QTableView):
     def __init__(self, columns):
         super().__init__()
+        # 移除第一列后的列定义
         self.columns = columns[1:]
         self.model = BaseTableModel(self.columns)
         self._init_table()
@@ -215,6 +187,7 @@ class BaseTable(QTableView):
             QTableView::item {
                 background-color: #FFFFFF;
                 border: none;
+                margin: 1px;
                 alignment: center;
             }
 
@@ -250,27 +223,25 @@ class BaseTable(QTableView):
         """)
 
     def _adjust_columns(self, custom_widths=None):
-        """
-        调整表格列宽：
-        - 所有列默认根据表头文字长度设置宽度
-        - custom_widths中指定的列使用固定宽度
-        """
+        """调整表格列宽"""
         minimum_width = 80
         header = self.horizontalHeader()
         font_metrics = QFontMetrics(self.font())
-        padding = 25  # 文字两侧的padding
+        padding = 25
 
         for column in range(self.model.columnCount()):
-            if custom_widths and column in custom_widths:
-                # 使用指定的固定宽度
-                width = custom_widths[column]
+            column_info = self.columns[column]
+
+            # 检查是否有预定义宽度
+            if isinstance(column_info, dict) and 'width' in column_info:
+                width = column_info['width']
             else:
-                # 从model中获取表头文字
+                # 获取表头文字
                 header_text = self.model.headerData(column, Qt.Horizontal)
                 if header_text:
                     width = font_metrics.horizontalAdvance(str(header_text)) + padding
                 else:
-                    width = minimum_width  # 默认宽度
+                    width = minimum_width
 
             header.setSectionResizeMode(column, QHeaderView.Fixed)
             self.setColumnWidth(column, max(width, minimum_width))
@@ -326,17 +297,24 @@ class BaseTable(QTableView):
         # 为每列设置适当的delegate
         self.setItemDelegateForColumn(len(self.columns) - 1, OperationDelegate(self))
 
-        line_edit_delegate = LineEditDelegate(self)
         for col in range(len(self.columns) - 1):
-            self.setItemDelegateForColumn(col, line_edit_delegate)
+            self.setItemDelegateForColumn(col, LineEditDelegate(self, prop=self.columns[col]))
 
     def _update_row_data(self, row: int, lane: int, row_data: dict):
-        for col, header in enumerate(self.columns[0:-1]):
-            value_key = header.removesuffix('.rw') if header.endswith('.rw') else header
+        for col, column_info in enumerate(self.columns[0:-1]):
+            # 获取值的键名
+            value_key = column_info['index'] if isinstance(column_info, dict) else column_info
+            value_key = value_key.removesuffix('.rw')
+
             value = row_data.get(value_key)
             if value is not None:
+                # 设置数据值
                 self.model.setData(self.model.index(row, col), str(value))
-                if header.endswith('.rw'):
+                # 设置居中对齐
+                self.model.setData(self.model.index(row, col), Qt.AlignCenter, Qt.TextAlignmentRole)
+
+                # 检查是否需要创建编辑器
+                if column_info.get('editable', False):
                     data_delegate = self.itemDelegateForColumn(col)
                     editor = self.indexWidget(self.model.index(row, col))
                     if editor is None:
@@ -391,8 +369,9 @@ class BaseTable(QTableView):
 
 
 class LineEditDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, prop: dict = None):
         super().__init__(parent)
+        self.prop = prop or {'type': 'int'}  # 默认类型为int
 
     def _update_editor_state(self, editor, modified=False):
         """更新编辑器的状态和样式"""
@@ -412,7 +391,6 @@ class LineEditDelegate(QStyledItemDelegate):
             QLineEdit {{
                 border: 1px solid #DADCE0;
                 border-radius: 4px;
-                margin: 1px;
                 background-color: {bg_color};
             }}
             QLineEdit:focus {{
@@ -421,11 +399,53 @@ class LineEditDelegate(QStyledItemDelegate):
             QLineEdit[modified="true"] {{
                 color: #007AFF;
             }}
+            QLineEdit[error="true"] {{
+                color: red;
+            }}
+            QToolTip {{
+                background-color: #FFFBE6;
+                color: #000000;
+                border: 1px solid #E0E0E0;
+                padding: 5px;
+                border-radius: 4px;
+            }}
         """)
+
+    def validate_input(self, editor, index, text, value_type):
+        try:
+            if not text:  # 允许空值
+                self._update_editor_state(editor, modified=True)
+                editor.setProperty("error", False)
+                self.update_background(editor, index)
+                editor.setToolTip("")
+                return
+
+            if value_type == 'int':
+                int(text)  # 尝试转换为整数
+            elif value_type == 'float':
+                float(text)  # 尝试转换为浮点数
+
+            # 验证成功，更新状态
+            self._update_editor_state(editor, modified=True)
+            editor.setProperty("error", False)
+            editor.setToolTip("")
+            self.update_background(editor, index)
+            self._handle_text_changed(editor, index, text)
+
+        except ValueError:
+            # 验证失败，显示错误状态
+            editor.setProperty("error", True)
+            self.update_background(editor, index)
+            error_msg = f"Please enter a valid {'integer' if value_type == 'int' else 'number'}"
+            editor.setToolTip(error_msg)
+            # 强制更新tooltip
+            editor.update()
 
     def createEditor(self, parent, option, index):
         editor = QLineEdit(parent)
         editor.setAlignment(Qt.AlignCenter)
+        # 确保启用鼠标追踪
+        editor.setMouseTracking(True)
 
         # 初始设置背景色
         self.update_background(editor, index)
@@ -433,7 +453,12 @@ class LineEditDelegate(QStyledItemDelegate):
         # 存储index供后续使用
         editor.setProperty("current_index", index)
 
-        editor.textChanged.connect(lambda text: self._handle_text_changed(editor, index, text))
+        # 根据类型设置验证器和处理函数
+        value_type = self.prop.get('type', 'int')
+
+        # 使用类的成员方法作为验证函数
+        editor.textChanged.connect(lambda text: self.validate_input(editor, index, text, value_type))
+
         return editor
 
     def setEditorData(self, editor, index):
@@ -517,10 +542,9 @@ class OperationDelegate(QStyledItemDelegate):
         # 收集可编辑列的数据
         row_data = {}
         for col, header in enumerate(model.columns[:-1]):
-            if header.endswith('.rw'):
+            if header.get('editable', False):
                 value = model.data(model.index(row, col))
-                if value:  # 只收集非空值
-                    row_data[header.removesuffix('.rw')] = value
+                row_data[header.get('index')] = value
 
         # 从垂直表头获取lane值
         lane = int(model.verticalHeaderItem(row).text().replace('lane', ''))

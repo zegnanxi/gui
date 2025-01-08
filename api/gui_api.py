@@ -31,7 +31,7 @@ class GuiApi:
         # 添加1秒延迟
         time.sleep(1)
 
-        return False, data
+        return True, data
 
     @classmethod
     def getAfe(cls, side, lane, dir):
