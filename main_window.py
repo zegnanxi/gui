@@ -56,7 +56,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.tabBar().setTabButton(0, QTabBar.ButtonPosition.RightSide, None)
 
         # 创建表格页
-        self.table_one = TableOne()
+        self.table_one = TableOne('Line Side')
         self.table_two = TableTwo('Host Side')
         self.table_three = TableThree('Line Side')
         self.tables = [self.table_one, self.table_two, self.table_three]

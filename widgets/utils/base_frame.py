@@ -1,10 +1,12 @@
 from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
-    QLineEdit, QPlainTextEdit, QToolButton, QSplitter, QTableView, QStyledItemDelegate)
+    QLineEdit, QPlainTextEdit, QToolButton, QSplitter, QTableView, QStyledItemDelegate, QCheckBox,
+    QComboBox)
 from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont
 from PySide6.QtCore import Qt, QSize, Slot
 
 from .progress_indicator import QProgressIndicator
+from .switch_button import SwitchButton
 
 
 class BaseFrame(QWidget):
@@ -22,16 +24,16 @@ class BaseFrame(QWidget):
                 results.append(item)
         return results
 
-    def __init__(self, side: str, model: str):
+    def __init__(self, side: str, model: str, table_properties: dict = None):
         super().__init__()
         self.fetcher_thread = None
-        self._init_ui(side, model)
+        self._init_ui(side, model, table_properties)
         self._init_connections()
 
-    def _init_ui(self, side: str, model: str):
+    def _init_ui(self, side: str, model: str, table_properties: dict):
         self.spinner = self._create_spinner()
         self.consoleWidget = ConsoleWidget()
-        self.tableWidget = BaseTable(self.COLUMNS)
+        self.tableWidget = BaseTable(self.COLUMNS, table_properties)
 
         font = QFont()
         font.setBold(True)
@@ -131,15 +133,7 @@ class BaseFrame(QWidget):
 class BaseTableModel(QStandardItemModel):
     def __init__(self, columns):
         super().__init__()
-        self.columns = columns
-        self._init_headers()
-
-    def _init_headers(self):
-        # 修改表头标签处理逻辑
-        self.setHorizontalHeaderLabels([
-            item['index'].removesuffix('.rw') if isinstance(item, dict) else item.removesuffix('.rw')
-            for item in self.columns
-        ])
+        self.setHorizontalHeaderLabels([item['index'] for item in columns])
 
     def flags(self, index):
         if not index.isValid():
@@ -154,12 +148,12 @@ class BaseTableModel(QStandardItemModel):
 
 
 class BaseTable(QTableView):
-    def __init__(self, columns):
+    def __init__(self, columns, table_properties: dict):
         super().__init__()
         # 移除第一列后的列定义
         self.columns = columns[1:]
         self.model = BaseTableModel(self.columns)
-        self._init_table()
+        self._init_table(table_properties)
         self._apply_styles()
 
     def _apply_styles(self):
@@ -180,7 +174,7 @@ class BaseTable(QTableView):
             }
 
             QTableView::item:focus {
-                background-color: #D2E3FC;
+                background-color: #E8F0FE;
                 color: #000000;
             }
 
@@ -222,42 +216,47 @@ class BaseTable(QTableView):
             }
         """)
 
-    def _adjust_columns(self, custom_widths=None):
+    def _adjust_columns(self):
         """调整表格列宽"""
         minimum_width = 80
         header = self.horizontalHeader()
         font_metrics = QFontMetrics(self.font())
         padding = 25
 
+        # 获取stretch模式设置
+        stretch_mode = (self.table_properties or {}).get('strech', False)
+
         for column in range(self.model.columnCount()):
             column_info = self.columns[column]
 
-            # 检查是否有预定义宽度
+            # 检查是否有预定义宽度（从column_info或custom_widths中获取）
             if isinstance(column_info, dict) and 'width' in column_info:
                 width = column_info['width']
+                header.setSectionResizeMode(column, QHeaderView.Fixed)
             else:
-                # 获取表头文字
-                header_text = self.model.headerData(column, Qt.Horizontal)
-                if header_text:
-                    width = font_metrics.horizontalAdvance(str(header_text)) + padding
-                else:
-                    width = minimum_width
+                if stretch_mode:
+                    header.setSectionResizeMode(column, QHeaderView.Stretch)
+                    continue
 
-            header.setSectionResizeMode(column, QHeaderView.Fixed)
+                # 获取表头文字宽度
+                header_text = self.model.headerData(column, Qt.Horizontal)
+                width = (font_metrics.horizontalAdvance(str(header_text)) + padding) if header_text else minimum_width
+                header.setSectionResizeMode(column, QHeaderView.Fixed)
+
+            # 设置列宽（仅对Fixed模式的列）
             self.setColumnWidth(column, max(width, minimum_width))
 
-    def _init_table(self):
+    def _init_table(self, table_properties: dict):
         self.setModel(self.model)
-        self._setup_table_properties()
+        self.table_properties = table_properties  # 存储table_properties以供后续使用
+        self._setup_table_properties(table_properties)
         self._setup_delegates()
         self._setup_selection_handling()
 
-        COLUMN_WIDTHS = {
-            self.model.columnCount() - 1: 200   # 操作列
-        }
-        self._adjust_columns(COLUMN_WIDTHS)
+        # 调整列宽
+        self._adjust_columns()
 
-    def _setup_table_properties(self):
+    def _setup_table_properties(self, table_properties: dict):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setSelectionBehavior(QTableView.SelectRows)
         self.setHorizontalScrollMode(QTableView.ScrollPerPixel)
@@ -297,8 +296,16 @@ class BaseTable(QTableView):
         # 为每列设置适当的delegate
         self.setItemDelegateForColumn(len(self.columns) - 1, OperationDelegate(self))
 
-        for col in range(len(self.columns) - 1):
-            self.setItemDelegateForColumn(col, LineEditDelegate(self, prop=self.columns[col]))
+        for col, column_info in enumerate(self.columns[:-1]):
+            column_type = column_info.get('type', 'int')
+            if column_type == 'boolean':
+                self.setItemDelegateForColumn(col, SwitchButtonDelegate(self, prop=column_info))
+            elif column_type == 'checkbox':
+                self.setItemDelegateForColumn(col, CheckboxDelegate(self, prop=column_info))
+            elif column_type == 'select':
+                self.setItemDelegateForColumn(col, ComboBoxDelegate(self, prop=column_info))
+            else:
+                self.setItemDelegateForColumn(col, LineEditDelegate(self, prop=column_info))
 
     def _update_row_data(self, row: int, lane: int, row_data: dict):
         for col, column_info in enumerate(self.columns[0:-1]):
@@ -310,17 +317,14 @@ class BaseTable(QTableView):
             if value is not None:
                 # 设置数据值
                 self.model.setData(self.model.index(row, col), str(value))
-                # 设置居中对齐
                 self.model.setData(self.model.index(row, col), Qt.AlignCenter, Qt.TextAlignmentRole)
 
-                # 检查是否需要创建编辑器
-                if column_info.get('editable', False):
-                    data_delegate = self.itemDelegateForColumn(col)
-                    editor = self.indexWidget(self.model.index(row, col))
-                    if editor is None:
-                        editor = data_delegate.createEditor(self.viewport(), None, self.model.index(row, col))
-                        self.setIndexWidget(self.model.index(row, col), editor)
-                    data_delegate.setEditorData(editor, self.model.index(row, col))
+                data_delegate = self.itemDelegateForColumn(col)
+                editor = self.indexWidget(self.model.index(row, col))
+                if editor is None:
+                    editor = data_delegate.createEditor(self.viewport(), None, self.model.index(row, col))
+                    self.setIndexWidget(self.model.index(row, col), editor)
+                data_delegate.setEditorData(editor, self.model.index(row, col))
 
         last_column = len(self.columns) - 1
         last_index = self.model.index(row, last_column)
@@ -379,25 +383,64 @@ class LineEditDelegate(QStyledItemDelegate):
         editor.style().unpolish(editor)
         editor.style().polish(editor)
 
-    def _handle_text_changed(self, editor, index, text):
-        index.model().setData(index, text, Qt.DisplayRole)
-        self._update_editor_state(editor, modified=True)
+    def createEditor(self, parent, option, index):
+        editor = QLineEdit(parent)
+        editor.setAlignment(Qt.AlignCenter)
+        editor.setMouseTracking(True)
+
+        # 检查是否可编辑
+        is_editable = self.prop.get('editable', False)
+        editor.setReadOnly(not is_editable)
+
+        # 初始设置背景色
+        self.update_background(editor, index)
+
+        # 存储index供后续使用
+        editor.setProperty("current_index", index)
+
+        # 只有在可编辑时才添加验证
+        if is_editable:
+            value_type = self.prop.get('type', 'int')
+            editor.textChanged.connect(lambda text: self.validate_input(editor, index, text, value_type))
+
+        # 根据可编辑状态设置不同的样式
+        base_style = f"""
+            QLineEdit {{
+                border: {('1px solid #DADCE0') if is_editable else 'none'};
+                border-radius: 4px;
+                background-color: #FFFFFF;
+            }}
+            QLineEdit:focus {{
+                border: {('1px solid #007AFF') if is_editable else 'none'};
+            }}
+            QLineEdit[modified="true"] {{
+                color: {'#007AFF' if is_editable else '#000000'};
+            }}
+            QLineEdit[error="true"] {{
+                color: red;
+            }}
+        """
+        editor.setStyleSheet(base_style)
+
+        return editor
 
     def update_background(self, editor, index):
         """更新编辑器的背景色"""
         view = self.parent()
+        is_editable = self.prop.get('editable', False)
         bg_color = "#E8F0FE" if view.selectionModel().isSelected(index) else "#FFFFFF"
+
         editor.setStyleSheet(f"""
             QLineEdit {{
-                border: 1px solid #DADCE0;
+                border: {('1px solid #DADCE0') if is_editable else 'none'};
                 border-radius: 4px;
                 background-color: {bg_color};
             }}
             QLineEdit:focus {{
-                border: 1px solid #007AFF;
+                border: {('1px solid #007AFF') if is_editable else 'none'};
             }}
             QLineEdit[modified="true"] {{
-                color: #007AFF;
+                color: {'#007AFF' if is_editable else '#000000'};
             }}
             QLineEdit[error="true"] {{
                 color: red;
@@ -430,7 +473,6 @@ class LineEditDelegate(QStyledItemDelegate):
             editor.setProperty("error", False)
             editor.setToolTip("")
             self.update_background(editor, index)
-            self._handle_text_changed(editor, index, text)
 
         except ValueError:
             # 验证失败，显示错误状态
@@ -441,30 +483,77 @@ class LineEditDelegate(QStyledItemDelegate):
             # 强制更新tooltip
             editor.update()
 
-    def createEditor(self, parent, option, index):
-        editor = QLineEdit(parent)
-        editor.setAlignment(Qt.AlignCenter)
-        # 确保启用鼠标追踪
-        editor.setMouseTracking(True)
-
-        # 初始设置背景色
-        self.update_background(editor, index)
-
-        # 存储index供后续使用
-        editor.setProperty("current_index", index)
-
-        # 根据类型设置验证器和处理函数
-        value_type = self.prop.get('type', 'int')
-
-        # 使用类的成员方法作为验证函数
-        editor.textChanged.connect(lambda text: self.validate_input(editor, index, text, value_type))
-
-        return editor
-
     def setEditorData(self, editor, index):
         value = index.model().data(index, Qt.DisplayRole)
         editor.setText(str(value) if value is not None else "")
         self._update_editor_state(editor, modified=False)
+
+
+class SwitchButtonDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None, prop: dict = None):
+        super().__init__(parent)
+        self.prop = prop or {}  # 存储属性信息
+
+    def createEditor(self, parent, option, index):
+        widget = QWidget(parent)
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(5, 5, 5, 5)
+
+        # 从prop中获取UI配置
+        ui_config = self.prop.get('ui', {})
+        editor = SwitchButton(parent, ui_config=ui_config)
+
+        # 根据单元格高度和文字宽度设置开关按钮大小
+        cell_height = self.parent().verticalHeader().defaultSectionSize() - 10  # 留出一些边距
+        text_width = max(
+            QFontMetrics(editor.font()).horizontalAdvance(ui_config.get('checked', SwitchButton.TEXT_NULL)),
+            QFontMetrics(editor.font()).horizontalAdvance(ui_config.get('unChecked', SwitchButton.TEXT_NULL))
+        )
+        switch_width = text_width + cell_height + 15  # 文字宽度 + 滑块宽度(等于高度) + padding
+
+        editor.setFixedSize(switch_width, cell_height)
+
+        # 创建一个水平布局来居中显示SwitchButton
+        innerLayout = QHBoxLayout()
+        innerLayout.setContentsMargins(0, 0, 0, 0)
+        innerLayout.addStretch()
+        innerLayout.addWidget(editor)
+        innerLayout.addStretch()
+
+        # 使用主布局来包含innerLayout
+        layout.addLayout(innerLayout)
+
+        # 设置初始状态和其他属性
+        value = index.model().data(index, Qt.DisplayRole)
+        editor.state = value.lower() == 'true' if value else False
+
+        is_editable = self.prop.get('editable', False)
+        editor.setEnabled(is_editable)
+
+        if is_editable:
+            def on_state_changed(state):
+                index.model().setData(index, str(state), Qt.DisplayRole)
+                self._update_editor_state(editor, modified=True)
+
+            editor.stateChanged.connect(on_state_changed)
+
+        return widget
+
+    def _update_editor_state(self, editor, modified=False):
+        """更新编辑器的状态和样式"""
+        # 获取顶层容器widget
+        container_widget = editor.parent()
+        while not isinstance(container_widget, QWidget) or isinstance(container_widget.parent(), QWidget):
+            container_widget = container_widget.parent()
+
+        # 设置修改状态
+        container_widget.setProperty("modified", modified)
+        container_widget.style().unpolish(container_widget)
+        container_widget.style().polish(container_widget)
+
+    def setEditorData(self, editor, index):
+        value = index.model().data(index, Qt.DisplayRole)
+        editor.state = value.lower() == 'true' if value else False
 
 
 class OperationDelegate(QStyledItemDelegate):
@@ -541,7 +630,7 @@ class OperationDelegate(QStyledItemDelegate):
 
         # 收集可编辑列的数据
         row_data = {}
-        for col, header in enumerate(model.columns[:-1]):
+        for col, header in enumerate(view.columns[:-1]):
             if header.get('editable', False):
                 value = model.data(model.index(row, col))
                 row_data[header.get('index')] = value
@@ -605,6 +694,134 @@ class ConsoleWidget(QWidget):
     def _init_connections(self):
         self.clearBtn.clicked.connect(self.clearConsoleLog)
 
-    @Slot()
+    @ Slot()
     def clearConsoleLog(self):
         self.console.clear()
+
+
+class CheckboxDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None, prop: dict = None):
+        super().__init__(parent)
+        self.prop = prop or {}
+
+    def createEditor(self, parent, option, index):
+        widget = QWidget(parent)
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setAlignment(Qt.AlignCenter)
+
+        checkbox = QCheckBox(parent)
+        # 设置复选框大小
+        checkbox.setMinimumSize(QSize(20, 20))
+
+        # 添加样式
+        checkbox.setStyleSheet("""
+            QCheckBox {
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+            }
+        """)
+
+        # 其余代码保持不变
+        value = index.model().data(index, Qt.DisplayRole)
+        try:
+            int_value = int(float(value)) if value else 0
+            checkbox.setChecked(int_value != 0)
+        except (ValueError, TypeError):
+            checkbox.setChecked(False)
+
+        checkbox.setEnabled(self.prop.get('editable', False))
+
+        if self.prop.get('editable', False):
+            checkbox.stateChanged.connect(
+                lambda state: index.model().setData(index, "1" if state else "0", Qt.DisplayRole)
+            )
+
+        layout.addWidget(checkbox)
+        return widget
+
+    def setEditorData(self, editor, index):
+        value = index.model().data(index, Qt.DisplayRole)
+        checkbox = editor.findChild(QCheckBox)
+        if checkbox:
+            try:
+                int_value = int(float(value)) if value else 0
+                checkbox.setChecked(int_value != 0)
+            except (ValueError, TypeError):
+                checkbox.setChecked(False)
+
+
+class ComboBoxDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None, prop: dict = None):
+        super().__init__(parent)
+        self.prop = prop or {}
+        self.enum_options = self.prop.get('ui', {}).get('enum', [])
+
+    def createEditor(self, parent, option, index):
+        widget = QWidget(parent)
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignCenter)
+
+        combobox = QComboBox(parent)
+        # 添加选项
+        for item in self.enum_options:
+            combobox.addItem(item['label'], item['value'])
+
+        # 设置是否可编辑
+        combobox.setEnabled(self.prop.get('editable', False))
+
+        # 设置样式
+        combobox.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #DADCE0;
+                border-radius: 4px;
+                padding: 2px 10px;
+                background-color: white;
+            }
+            QComboBox:disabled {
+                background-color: #F8F9FA;
+                border: none;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            # QComboBox::down-arrow {
+            #     image: url(:/icon/image/icon/down.png);
+            #     width: 12px;
+            #     height: 12px;
+            # }
+        """)
+
+        # 设置大小策略以填充整个单元格
+        combobox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        if self.prop.get('editable', False):
+            combobox.currentIndexChanged.connect(
+                lambda: index.model().setData(
+                    index,
+                    str(combobox.currentData()),
+                    Qt.DisplayRole
+                )
+            )
+
+        layout.addWidget(combobox)
+        return widget
+
+    def setEditorData(self, editor, index):
+        value = index.model().data(index, Qt.DisplayRole)
+        combobox = editor.findChild(QComboBox)
+        if combobox:
+            try:
+                value_int = int(value) if value else None
+                # 查找匹配的值并设置
+                for i in range(combobox.count()):
+                    if combobox.itemData(i) == value_int:
+                        combobox.setCurrentIndex(i)
+                        break
+            except (ValueError, TypeError):
+                combobox.setCurrentIndex(0)
