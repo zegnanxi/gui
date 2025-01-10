@@ -24,12 +24,12 @@ class SwitchButtonDelegate(QStyledItemDelegate):
         editor.setPalette(switch_palette)
 
         # 根据单元格高度和文字宽度设置开关按钮大小
-        cell_height = self.parent().verticalHeader().defaultSectionSize() - 10  # 留出一些边距
+        cell_height = self.parent().verticalHeader().defaultSectionSize() - 20  # 留出一些边距
         text_width = max(
             QFontMetrics(editor.font()).horizontalAdvance(ui_config.get('checked', SwitchButton.TEXT_NULL)),
             QFontMetrics(editor.font()).horizontalAdvance(ui_config.get('unChecked', SwitchButton.TEXT_NULL))
         )
-        switch_width = text_width + cell_height + 15  # 文字宽度 + 滑块宽度(等于高度) + padding
+        switch_width = text_width + cell_height  # 文字宽度 + 滑块宽度(等于高度) + padding
 
         editor.setFixedSize(switch_width, cell_height)
 
@@ -76,17 +76,6 @@ class SwitchButtonDelegate(QStyledItemDelegate):
         value = index.model().data(index, Qt.DisplayRole)
         editor.state = value.lower() == 'true' if value else False
 
-    def updateBackground(self, editor, index):
-        """更新编辑器的背景色"""
-        view = self.parent()
-        bg_color = QColor("#E8F0FE") if view.selectionModel().isSelected(index) else QColor("#FFFFFF")
-
-        container = editor.parent()
-        palette = container.palette()
-        palette.setColor(QPalette.Base, bg_color)
-        palette.setColor(QPalette.Window, bg_color)
-        container.setPalette(palette)
-
     def setEditorReadOnly(self, editor, readonly):
         """设置编辑器的只读状态"""
         switch_button = editor.findChild(SwitchButton)
@@ -95,7 +84,7 @@ class SwitchButtonDelegate(QStyledItemDelegate):
 
 
 class SwitchButton(QWidget):
-    TEXT_NULL = '    '
+    TEXT_NULL = '      '
 
     # 定义信号
     stateChanged = Signal(bool)

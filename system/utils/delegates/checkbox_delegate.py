@@ -57,21 +57,6 @@ class CheckboxDelegate(QStyledItemDelegate):
             except (ValueError, TypeError):
                 checkbox.setChecked(False)
 
-    def updateBackground(self, editor, index):
-        """更新编辑器的背景色"""
-        view = self.parent()
-        bg_color = "#E8F0FE" if view.selectionModel().isSelected(index) else "#FFFFFF"
-
-        container = editor.parent()
-        container.setStyleSheet(f"""
-            QWidget {{
-                background-color: {bg_color};
-            }}
-            QCheckBox {{
-                background-color: transparent;
-            }}
-        """)
-
     def setEditorReadOnly(self, editor, readonly):
         """设置编辑器的只读状态"""
         checkbox = editor.findChild(QCheckBox)

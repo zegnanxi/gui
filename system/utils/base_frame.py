@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
-    QLineEdit, QPlainTextEdit, QToolButton, QSplitter, QTableView)
+    QPlainTextEdit, QToolButton, QSplitter, QTableView)
 from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont
 from PySide6.QtCore import Qt, QSize, Slot
 
@@ -197,6 +197,7 @@ class BaseTable(QTableView):
 
             QTableView::item:focus {
                 background-color: #E8F0FE;
+                border: none;
                 color: #000000;
             }
 
@@ -313,6 +314,7 @@ class BaseTable(QTableView):
 
         # 添加以下设置来禁用自动滚动
         self.setAutoScroll(False)
+        self.setFocusPolicy(Qt.NoFocus)
 
     def _setup_delegates(self):
         # 为每列设置适当的delegate
@@ -387,13 +389,12 @@ class BaseTable(QTableView):
         def on_selection_changed(selected, deselected):
             # 更新所有可见编辑器的背景色
             for row in range(self.model.rowCount()):
-                for col in range(self.model.columnCount() - 1):  # 跳过最后一列（操作列）
+                for col in range(self.model.columnCount()):
                     index = self.model.index(row, col)
                     editor = self.indexWidget(index)
-                    if editor and isinstance(editor, QLineEdit):
-                        delegate = self.itemDelegateForColumn(col)
-                        if isinstance(delegate, LineEditDelegate):
-                            delegate.updateBackground(editor, index)
+                    delegate = self.itemDelegateForColumn(col)
+                    if hasattr(delegate, 'updateBackground'):
+                        delegate.updateBackground(editor, index)
 
         self.selectionModel().selectionChanged.connect(on_selection_changed)
 
