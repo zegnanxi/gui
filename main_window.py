@@ -5,6 +5,10 @@ from system.dsp.table_two import TableTwo
 from system.dsp.table_three import TableThree
 import sys
 from PySide6.QtWidgets import QApplication
+import yaml  # 添加在文件开头的导入部分
+import argparse
+import subprocess
+import os
 
 
 class MainWindow(QMainWindow):
@@ -94,11 +98,83 @@ class MainWindow(QMainWindow):
             return
         self.tab_widget.removeTab(index)
 
+    def update_rpc_server_addr(self, new_addr: str):
+        """更新配置文件中的 RPC 服务器地址"""
+        config_path = 'conf/conf.yaml'
+        try:
+            # 读取文件内容
+            with open(config_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # 只修改包含 rpc_server_addr 的行
+            for i, line in enumerate(lines):
+                if 'rpc_server_addr' in line:
+                    indent = len(line) - len(line.lstrip())  # 保持原有缩进
+                    lines[i] = ' ' * indent + f"rpc_server_addr: '{new_addr}'\n"
+                    break
+
+            # 写回文件
+            with open(config_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+        except Exception as e:
+            print(f"更新配置文件失败: {str(e)}")
+
+    def execute_bat_file(self, rpc_server: str) -> None:
+        """执行对应的批处理文件
+
+        Args:
+            rpc_server: RPC服务器地址
+
+        Returns:
+            None
+        """
+        # 获取当前工作目录
+        current_dir = os.getcwd()
+
+        # 构建批处理文件的路径
+        bat_file = os.path.join(
+            current_dir,
+            'hw',
+            'use_local.bat' if rpc_server.startswith('127.0.0.1') else 'use_rpc.bat'
+        )
+
+        try:
+            # 使用 subprocess.PIPE 来捕获输出，并设置 stdin 以自动处理 pause 命令
+            subprocess.run(
+                bat_file,
+                shell=True,
+                check=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"执行批处理文件失败: {str(e)}")
+
 
 def main():
-    """程序入口函数"""
+    """程序入口函数
+
+    接收命令行参数 rpc_server 来设置服务器地址
+    根据地址是本地还是远程来执行相应的批处理文件
+    """
+    # 创建命令行参数解析器
+    parser = argparse.ArgumentParser(description='启动主程序')
+    parser.add_argument('--rpc_server', type=str, required=True,
+                        help='RPC服务器地址，例如: 127.0.0.1:8080')
+
+    # 解析命令行参数
+    args = parser.parse_args()
+
     app = QApplication(sys.argv)
     window = MainWindow()
+
+    # 更新RPC服务器地址
+    window.update_rpc_server_addr(args.rpc_server)
+
+    # 执行批处理文件
+    window.execute_bat_file(args.rpc_server)
+
     window.show()
     sys.exit(app.exec())
 

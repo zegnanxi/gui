@@ -1,0 +1,2 @@
+echo "use rpc"
+pause

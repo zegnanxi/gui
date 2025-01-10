@@ -6,13 +6,19 @@ class TableThree(BaseFrame):
     # 类级别常量定义
     COLUMNS = [
         {'index': 'lane', 'type': 'vertical header'},
-        {'index': 'driver_mode', 'editable': True},
-        {'index': 'prop_1', 'type': 'checkbox', 'editable': True},
-        {'index': 'prop_4'},
-        {'index': 'prop_6', 'type': 'str', 'editable': True},
-        {'index': 'prop_8', 'type': 'boolean', 'editable': True},
-        {'index': 'prop_9'},
-        {'index': 'Operation', 'type': 'btn', 'width': 200}
+        {'index': 'afe_mode', 'type': 'select', 'editable': True, 'ui': {
+            'enum': [
+                {'label': 'Normal', 'value': 1},
+                {'label': 'Debug', 'value': 2},
+                {'label': 'Test', 'value': 3}
+            ]
+        }},
+        {'index': 'afe_1', 'type': 'checkbox', 'editable': True},
+        {'index': 'afe_2'},
+        {'index': 'afe_6666666666666666666666663', 'type': 'str', 'editable': True},
+        {'index': 'afe_4', 'type': 'boolean', 'editable': True},
+        {'index': 'afe_5'},
+        {'index': 'Operation', 'type': 'btn', 'width': 100, 'buttons': ['get']}
     ]
     LANE_COUNT = 4
 

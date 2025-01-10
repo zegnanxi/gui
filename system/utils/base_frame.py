@@ -318,7 +318,7 @@ class BaseTable(QTableView):
 
     def _setup_delegates(self):
         # 为每列设置适当的delegate
-        self.setItemDelegateForColumn(len(self.columns) - 1, OperationDelegate(self))
+        self.setItemDelegateForColumn(len(self.columns) - 1, OperationDelegate(self, prop=self.columns[-1]))
 
         for col, column_info in enumerate(self.columns[:-1]):
             column_type = column_info.get('type', 'int')
@@ -340,7 +340,8 @@ class BaseTable(QTableView):
             value = row_data.get(value_key)
             if value is not None:
                 # 设置数据值
-                self.model.setData(self.model.index(row, col), str(value))
+                self.model.setData(self.model.index(row, col), f'{
+                                   value:.5g}' if isinstance(value, float) else str(value))
                 self.model.setData(self.model.index(row, col), Qt.AlignCenter, Qt.TextAlignmentRole)
 
                 data_delegate = self.itemDelegateForColumn(col)

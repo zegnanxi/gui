@@ -3,8 +3,9 @@ from PySide6.QtWidgets import (QStyledItemDelegate, QWidget, QHBoxLayout,
 
 
 class OperationDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, prop=None):
         super().__init__(parent)
+        self.prop = prop or {}  # 存储按钮配置
 
     def createEditor(self, parent, option, index):
         # 创建容器widget
@@ -13,21 +14,23 @@ class OperationDelegate(QStyledItemDelegate):
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(8)
 
-        # 修改按钮样式和大小策略
-        get_btn = QToolButton(widget)
-        get_btn.setText("Get")
-        get_btn.clicked.connect(lambda: self._handle_get_clicked(index.row()))
-        get_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        # 创建Set按钮
-        set_btn = QToolButton(widget)
-        set_btn.setText("Set")
-        set_btn.clicked.connect(lambda: self._handle_set_clicked(index.row()))
-        set_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        # 添加按钮到布局
-        layout.addWidget(get_btn, 1)
-        layout.addWidget(set_btn, 1)
+        # 从prop中获取按钮配置
+        buttons = self.prop.get('buttons', ['get', 'set'])  # 默认显示get和set按钮
+
+        # 创建配置的按钮
+        for btn_type in buttons:
+            btn = QToolButton(widget)
+            btn.setText(btn_type.capitalize())  # 首字母大写
+            if btn_type.lower() == 'get':
+                btn.clicked.connect(lambda: self._handle_get_clicked(index.row()))
+            elif btn_type.lower() == 'set':
+                btn.clicked.connect(lambda: self._handle_set_clicked(index.row()))
+            btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            layout.addWidget(btn, 1)
+
         layout.addStretch()
 
+        # 设置按钮样式
         widget.setStyleSheet("""
             QToolButton {
                 background-color: lightgrey;

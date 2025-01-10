@@ -39,7 +39,7 @@ class GuiApi:
         time.sleep(1)
 
         values = {}
-        values['afe_mode'] = random.randint(0, 2)
+        values['afe_mode'] = random.randint(1, 3)
         values['afe_1'] = random.randint(0, 5)
         values['afe_2'] = random.randint(0, 1)
         values['afe_6666666666666666666666663'] = random.randint(8, 15)
