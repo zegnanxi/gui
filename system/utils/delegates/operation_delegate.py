@@ -1,0 +1,105 @@
+from PySide6.QtWidgets import (QStyledItemDelegate, QWidget, QHBoxLayout,
+                               QToolButton, QSizePolicy)
+
+
+class OperationDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def createEditor(self, parent, option, index):
+        # 创建容器widget
+        widget = QWidget(parent)
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(8)
+
+        # 修改按钮样式和大小策略
+        get_btn = QToolButton(widget)
+        get_btn.setText("Get")
+        get_btn.clicked.connect(lambda: self._handle_get_clicked(index.row()))
+        get_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        # 创建Set按钮
+        set_btn = QToolButton(widget)
+        set_btn.setText("Set")
+        set_btn.clicked.connect(lambda: self._handle_set_clicked(index.row()))
+        set_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        # 添加按钮到布局
+        layout.addWidget(get_btn, 1)
+        layout.addWidget(set_btn, 1)
+        layout.addStretch()
+
+        widget.setStyleSheet("""
+            QToolButton {
+                background-color: lightgrey;
+                color: black;
+                border: 1px solid grey;
+                border-radius: 4px;
+                padding: 5px;
+            }
+            QToolButton:hover {
+                background-color: #79CDCD;
+            }
+            QToolButton:pressed {
+                background-color: #4D4D4D;
+            }
+        """)
+
+        return widget
+
+    def _handle_get_clicked(self, row):
+        """处理Get按钮点击事件"""
+        view = self.parent()
+        model = view.model
+
+        # 选中当前行
+        view.selectRow(row)
+
+        # 从垂直表头获取lane值
+        lane = int(model.verticalHeaderItem(row).text().replace('lane', ''))
+        # 获取BaseFrame实例
+        base_frame = self._get_base_frame(view)
+        if base_frame:
+            base_frame.show_loading_state()
+            base_frame.fetcher_thread = base_frame.create_dev_op_thread('get', lane)
+            base_frame.fetcher_thread.row_ready.connect(view.update_row)
+            base_frame.fetcher_thread.log_message.connect(base_frame.consoleWidget.console.appendPlainText)
+            base_frame.fetcher_thread.finished.connect(base_frame._hide_loading_state)
+            base_frame.fetcher_thread.start()
+
+    def _handle_set_clicked(self, row):
+        """处理Set按钮点击事件"""
+        view = self.parent()
+        model = view.model
+
+        # 选中当前行
+        view.selectRow(row)
+
+        # 收集可编辑列的数据
+        row_data = {}
+        for col, header in enumerate(view.columns[:-1]):
+            if header.get('editable', False):
+                value = model.data(model.index(row, col))
+                row_data[header.get('index')] = value
+
+        # 从垂直表头获取lane值
+        lane = int(model.verticalHeaderItem(row).text().replace('lane', ''))
+
+        # 获取BaseFrame实例
+        base_frame = self._get_base_frame(view)
+        if base_frame:
+            base_frame.show_loading_state()
+            base_frame.fetcher_thread = base_frame.create_dev_op_thread('set', lane, row_data)
+            base_frame.fetcher_thread.row_ready.connect(view.update_row)
+            base_frame.fetcher_thread.log_message.connect(base_frame.consoleWidget.console.appendPlainText)
+            base_frame.fetcher_thread.finished.connect(base_frame._hide_loading_state)
+            base_frame.fetcher_thread.start()
+
+    def _get_base_frame(self, widget):
+        """获取BaseFrame实例的辅助方法"""
+        # 在方法内部进行导入以避免循环导入
+        from ..base_frame import BaseFrame
+
+        parent = widget.parent()
+        while parent and not isinstance(parent, BaseFrame):
+            parent = parent.parent()
+        return parent

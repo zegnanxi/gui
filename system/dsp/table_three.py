@@ -1,5 +1,5 @@
-from widgets.utils.device_oper_thread import DeviceOperThread
-from .utils.base_frame import BaseFrame
+from ..utils.device_oper_thread import DeviceOperThread
+from ..utils.base_frame import BaseFrame
 
 
 class TableThree(BaseFrame):

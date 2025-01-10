@@ -1,9 +1,8 @@
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                                QHBoxLayout, QPushButton, QTabWidget, QTabBar)
-from widgets.utils.progress_indicator import QProgressIndicator
-from widgets.table_one import TableOne
-from widgets.table_two import TableTwo
-from widgets.table_three import TableThree
+from system.dsp.table_one import TableOne
+from system.dsp.table_two import TableTwo
+from system.dsp.table_three import TableThree
 import sys
 from PySide6.QtWidgets import QApplication
 
@@ -61,10 +60,6 @@ class MainWindow(QMainWindow):
         self.table_three = TableThree('Line Side')
         self.tables = [self.table_one, self.table_two, self.table_three]
 
-        # 创建加载指示器
-        self.spinner = QProgressIndicator(self)
-        self.spinner.hide()
-
         # 设置窗口属性
         self.resize(1500, 1000)
         self.setWindowTitle("多功能表格示例")
@@ -98,15 +93,6 @@ class MainWindow(QMainWindow):
         if index == 0:
             return
         self.tab_widget.removeTab(index)
-
-    def resizeEvent(self, event):
-        """重写 resizeEvent 以在窗口大小改变时调整 spinner 位置"""
-        super().resizeEvent(event)
-        if self.spinner and not self.spinner.isHidden():
-            self.spinner.move(
-                self.width() // 2 - self.spinner.width() // 2,
-                self.height() // 2 - self.spinner.height() // 2
-            )
 
 
 def main():

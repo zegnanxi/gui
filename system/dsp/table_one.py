@@ -1,5 +1,5 @@
-from widgets.utils.device_oper_thread import DeviceOperThread
-from .utils.base_frame import BaseFrame
+from ..utils.device_oper_thread import DeviceOperThread
+from ..utils.base_frame import BaseFrame
 
 
 class TableOne(BaseFrame):
@@ -13,10 +13,10 @@ class TableOne(BaseFrame):
                 {'label': 'Test', 'value': 3}
             ]
         }},
+        {'index': 'prop_4', 'editable': {'driver_mode': [2, 3]}},
         {'index': 'prop_1', 'type': 'checkbox', 'editable': True},
-        {'index': 'prop_4'},
         {'index': 'prop_6', 'type': 'str', 'editable': True},
-        {'index': 'prop_8', 'type': 'boolean', 'editable': True},
+        {'index': 'prop_8', 'type': 'boolean', 'editable': {'driver_mode': [1]}},
         {'index': 'prop_9'},
         {'index': 'Operation', 'type': 'btn', 'width': 200}
     ]
