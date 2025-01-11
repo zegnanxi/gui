@@ -49,16 +49,34 @@ class OperationDelegate(QStyledItemDelegate):
 
         return widget
 
+    def _get_lane_from_row(self, row):
+        """从行数据中获取lane值"""
+        view = self.parent()
+        model = view.model
+        
+        # 获取垂直表头配置
+        vertical_header_config = view.vertical_header_config
+        if vertical_header_config:
+            # 获取表头文本
+            header_text = model.verticalHeaderItem(row).text()
+            # 移除配置中的index前缀
+            prefix = vertical_header_config['index']
+            if header_text.startswith(prefix):
+                return int(header_text[len(prefix):])
+        
+        # 如果没有垂直表头配置，则使用行号作为lane
+        return row
+
     def _handle_get_clicked(self, row):
         """处理Get按钮点击事件"""
         view = self.parent()
-        model = view.model
-
+        
         # 选中当前行
         view.selectRow(row)
-
-        # 从垂直表头获取lane值
-        lane = int(model.verticalHeaderItem(row).text().replace('lane', ''))
+        
+        # 获取lane值
+        lane = self._get_lane_from_row(row)
+        
         # 获取BaseFrame实例
         base_frame = self._get_base_frame(view)
         if base_frame:
@@ -73,20 +91,20 @@ class OperationDelegate(QStyledItemDelegate):
         """处理Set按钮点击事件"""
         view = self.parent()
         model = view.model
-
+        
         # 选中当前行
         view.selectRow(row)
-
+        
         # 收集可编辑列的数据
         row_data = {}
         for col, header in enumerate(view.columns[:-1]):
             if header.get('editable', False):
                 value = model.data(model.index(row, col))
                 row_data[header.get('index')] = value
-
-        # 从垂直表头获取lane值
-        lane = int(model.verticalHeaderItem(row).text().replace('lane', ''))
-
+        
+        # 获取lane值
+        lane = self._get_lane_from_row(row)
+        
         # 获取BaseFrame实例
         base_frame = self._get_base_frame(view)
         if base_frame:

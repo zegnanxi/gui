@@ -172,8 +172,10 @@ class BaseTableModel(QStandardItemModel):
 class BaseTable(QTableView):
     def __init__(self, columns, table_properties: dict):
         super().__init__()
-        # 移除第一列后的列定义
-        self.columns = columns[1:]
+        # 检查是否有垂直表头配置
+        self.vertical_header_config = next((col for col in columns if col.get('type') == 'vertical header'), None)
+        # 移除垂直表头配置后的列定义
+        self.columns = [col for col in columns if col != self.vertical_header_config]        
         self.model = BaseTableModel(self.columns)
         self._init_table(table_properties)
         self._apply_styles()
@@ -229,7 +231,7 @@ class BaseTable(QTableView):
 
             QHeaderView::section:horizontal {
                 background-color: #DADCE0;
-                border-right: 1px solid #FFFFFF;
+                border-top: 1px solid #D0D0D0;
                 border-left: 1px solid #FFFFFF;
             }
 
@@ -248,7 +250,6 @@ class BaseTable(QTableView):
 
         # 获取stretch模式设置
         stretch_mode = (self.table_properties or {}).get('strech', False)
-
         for column in range(self.model.columnCount()):
             column_info = self.columns[column]
 
@@ -284,14 +285,18 @@ class BaseTable(QTableView):
         self.setSelectionBehavior(QTableView.SelectRows)
         self.setHorizontalScrollMode(QTableView.ScrollPerPixel)
 
-        # 显示垂直表头并设置其属性
+        # 根据配置显示或隐藏垂直表头
         v_header = self.verticalHeader()
-        v_header.setVisible(True)
-        v_header.setDefaultAlignment(Qt.AlignCenter)
-        v_header.setHighlightSections(False)
-        v_header.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
-        v_header.setDefaultSectionSize(40)  # 行高40
-        v_header.setMinimumWidth(60)
+        if self.vertical_header_config:
+            v_header.setVisible(True)
+            v_header.setDefaultAlignment(Qt.AlignCenter)
+            v_header.setHighlightSections(False)
+            v_header.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+            v_header.setDefaultSectionSize(40)
+            v_header.setMinimumWidth(60)
+        else:
+            v_header.setVisible(False)
+            v_header.setDefaultSectionSize(40)
 
         # 设置表头属性
         header = self.horizontalHeader()
@@ -373,13 +378,18 @@ class BaseTable(QTableView):
         self.update_editable_states(row)
 
     def _find_or_create_row(self, lane: int) -> int:
+        if self.vertical_header_config:
+            target_row = f'{self.vertical_header_config["index"]}{lane}'
+        else:
+            target_row = str(lane)
+
         for row in range(self.model.rowCount()):
-            if self.model.verticalHeaderItem(row).text() == f'lane{lane}':
+            if self.model.verticalHeaderItem(row).text() == target_row:
                 return row
 
         row = self.model.rowCount()
         self.model.insertRow(row)
-        self.model.setVerticalHeaderItem(row, QStandardItem(f'lane{lane}'))
+        self.model.setVerticalHeaderItem(row, QStandardItem(target_row))
         return row
 
     def create_dev_op_thread(self):

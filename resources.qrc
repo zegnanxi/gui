@@ -1,5 +1,6 @@
-<RCC>
-    <qresource prefix="icon">
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/icon">
         <file>image/icon/down_arrow.png</file>
     </qresource>
 </RCC>

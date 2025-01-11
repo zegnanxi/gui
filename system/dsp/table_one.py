@@ -5,7 +5,7 @@ from ..utils.base_frame import BaseFrame
 class TableOne(BaseFrame):
     # 类级别常量定义
     COLUMNS = [
-        {'index': 'lane', 'type': 'vertical header'},
+        {'index': 'row', 'type': 'vertical header'},
         {'index': 'driver_mode', 'type': 'select', 'editable': True, 'ui': {
             'enum': [
                 {'label': 'Normal', 'value': 1},
@@ -22,13 +22,9 @@ class TableOne(BaseFrame):
     ]
     LANE_COUNT = 4
 
-    table_properties = {
-        'strech': True,
-    }
-
     def __init__(self, side):
         self.side = side
-        super().__init__(self.side, 'TableOne', self.table_properties)
+        super().__init__(self.side, 'TableOne', {'strech': True})
 
     def create_dev_op_thread(self, op='get', lane=None, *args):
         if lane is not None:

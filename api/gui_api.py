@@ -39,15 +39,20 @@ class GuiApi:
         time.sleep(1)
 
         values = {}
-        values['afe_mode'] = random.randint(1, 3)
-        values['afe_1'] = random.randint(0, 5)
-        values['afe_2'] = random.randint(0, 1)
-        values['afe_6666666666666666666666663'] = random.randint(8, 15)
-        values['afe_4'] = random.randint(10, 20)
-        values['afe_5'] = random.randint(0, 3)
-        values['afe_6'] = random.randint(0, 2)
-        values['afe_77'] = random.randint(0, 2)
-        values['afe_8'] = random.randint(0, 2)
+        # values['afe_mode'] = random.randint(1, 3)
+        # values['afe_disable'] = random.randint(1, 3)
+        # values['afe_1'] = random.randint(0, 5)
+        # values['afe_2'] = random.randint(0, 1)
+        # values['afe_6666666666666666666666663'] = random.randint(8, 15)
+        # values['afe_4'] = random.randint(10, 20)
+        # values['afe_5'] = random.randint(0, 3)
+        # values['afe_6'] = random.randint(0, 2)
+        # values['afe_77'] = random.randint(0, 2)
+        # values['afe_8'] = random.randint(0, 2)
+        values['lane0'] = 1
+        values['lane1'] = 0
+        values['lane2'] = 1
+        values['lane3'] = 0
         return True, values
 
     @classmethod

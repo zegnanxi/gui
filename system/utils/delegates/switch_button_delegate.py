@@ -54,27 +54,17 @@ class SwitchButtonDelegate(QStyledItemDelegate):
         if is_editable:
             def on_state_changed(state):
                 index.model().setData(index, str(state), Qt.DisplayRole)
-                self._update_editor_state(editor, modified=True)
+                view.update_editable_states(index.row())
 
             editor.stateChanged.connect(on_state_changed)
 
         return widget
 
-    def _update_editor_state(self, editor, modified=False):
-        """更新编辑器的状态和样式"""
-        # 获取顶层容器widget
-        container_widget = editor.parent()
-        while not isinstance(container_widget, QWidget) or isinstance(container_widget.parent(), QWidget):
-            container_widget = container_widget.parent()
-
-        # 设置修改状态
-        container_widget.setProperty("modified", modified)
-        container_widget.style().unpolish(container_widget)
-        container_widget.style().polish(container_widget)
-
     def setEditorData(self, editor, index):
-        value = index.model().data(index, Qt.DisplayRole)
-        editor.state = value.lower() == 'true' if value else False
+        switch_button = editor.findChild(SwitchButton)
+        if switch_button:
+            value = index.model().data(index, Qt.DisplayRole)
+            switch_button.state = value.lower() == 'true' if value else False  
 
     def setEditorReadOnly(self, editor, readonly):
         """设置编辑器的只读状态"""
@@ -143,13 +133,13 @@ class SwitchButton(QWidget):
 
         # 定义颜色
         if self.isEnabled():
-            on_bg_color = QColor('#6495ED')  # 苹果风格的绿色
+            on_bg_color = QColor('#0067C0')  # 苹果风格的蓝色
             off_bg_color = QColor('#E9E9EA')  # 浅灰色背景
             handle_color = QColor('#FFFFFF')  # 白色滑块
             text_color = QColor('#FFFFFF' if self.state else '#999999')
         else:
             # 禁用状态使用更浅的颜色
-            on_bg_color = QColor('#6495ED').lighter(150)  # 更浅的绿色
+            on_bg_color = QColor('#0067C0').lighter(230)  # 更浅的蓝色
             off_bg_color = QColor('#F5F5F5')  # 更浅的灰色
             handle_color = QColor('#E0E0E0')  # 灰色滑块
             text_color = QColor('#CCCCCC')

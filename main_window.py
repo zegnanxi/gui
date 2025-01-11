@@ -9,6 +9,7 @@ import yaml  # 添加在文件开头的导入部分
 import argparse
 import subprocess
 import os
+import resources_rc
 
 
 class MainWindow(QMainWindow):
@@ -153,27 +154,22 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    """程序入口函数
+    # # 创建命令行参数解析器
+    # parser = argparse.ArgumentParser(description='启动主程序')
+    # parser.add_argument('--rpc_server', type=str, required=True,
+    #                     help='RPC服务器地址，例如: 127.0.0.1:8080')
 
-    接收命令行参数 rpc_server 来设置服务器地址
-    根据地址是本地还是远程来执行相应的批处理文件
-    """
-    # 创建命令行参数解析器
-    parser = argparse.ArgumentParser(description='启动主程序')
-    parser.add_argument('--rpc_server', type=str, required=True,
-                        help='RPC服务器地址，例如: 127.0.0.1:8080')
-
-    # 解析命令行参数
-    args = parser.parse_args()
+    # # 解析命令行参数
+    # args = parser.parse_args()
 
     app = QApplication(sys.argv)
     window = MainWindow()
 
     # 更新RPC服务器地址
-    window.update_rpc_server_addr(args.rpc_server)
+    # window.update_rpc_server_addr(args.rpc_server)
 
-    # 执行批处理文件
-    window.execute_bat_file(args.rpc_server)
+    # # 执行批处理文件
+    # window.execute_bat_file(args.rpc_server)
 
     window.show()
     sys.exit(app.exec())

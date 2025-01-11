@@ -17,14 +17,11 @@ class CheckboxDelegate(QStyledItemDelegate):
         # 设置复选框大小
         checkbox.setMinimumSize(QSize(20, 20))
 
-        # 添加样式
         checkbox.setStyleSheet("""
-            QCheckBox {
-                spacing: 5px;
-            }
-            QCheckBox::indicator {
-                width: 20px;
-                height: 20px;
+            QCheckBox::indicator:unchecked:disabled {
+                background-color: #F0F0F0;
+                border: 1px solid #D0D0D0;
+                border-radius: 5px;
             }
         """)
 

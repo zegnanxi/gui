@@ -27,7 +27,7 @@ class TableTwo(BaseFrame):
         {'index': 'prop_10', 'type': 'boolean', 'width': 100, 'editable': True},
         {'index': 'prop_11'},
         {'index': 'prop_12'},
-        {'index': 'Operation', 'type': 'btn', 'width': 200}
+        {'index': 'Operation', 'type': 'btn', 'width': 100, 'buttons': ['get']}
     ]
 
     LANE_COUNT = 4

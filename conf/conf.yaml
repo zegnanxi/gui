@@ -11,6 +11,6 @@
   'log_max_backups': !!null 'null'
   'log_max_size': !!null 'null'
   'name': !!null 'null'
-  rpc_server_addr: '127.0.0.1:9999'
+  rpc_server_addr: '1.2.3.4'
   'theme': !!null 'null'
   'version': !!null 'null'
