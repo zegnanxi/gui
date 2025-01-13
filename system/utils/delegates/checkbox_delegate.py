@@ -17,13 +17,13 @@ class CheckboxDelegate(QStyledItemDelegate):
         # 设置复选框大小
         checkbox.setMinimumSize(QSize(20, 20))
 
-        checkbox.setStyleSheet("""
-            QCheckBox::indicator:unchecked:disabled {
-                background-color: #F0F0F0;
-                border: 1px solid #D0D0D0;
-                border-radius: 5px;
-            }
-        """)
+        # checkbox.setStyleSheet("""
+        #     QCheckBox::indicator:unchecked:disabled {
+        #         background-color: #F0F0F0;
+        #         border: 1px solid #D0D0D0;
+        #         border-radius: 5px;
+        #     }
+        # """)
 
         # 其余代码保持不变
         value = index.model().data(index, Qt.DisplayRole)
@@ -59,3 +59,6 @@ class CheckboxDelegate(QStyledItemDelegate):
         checkbox = editor.findChild(QCheckBox)
         if checkbox:
             checkbox.setEnabled(not readonly)
+
+    def paint(self, painter, option, index):
+        pass

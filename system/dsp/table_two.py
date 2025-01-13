@@ -32,11 +32,13 @@ class TableTwo(BaseFrame):
 
     LANE_COUNT = 4
 
-    def __init__(self, side):
+    def __init__(self, side, parent):
         self.side = side
         self.COLUMNS = self._process_columns(self.COLUMNS_ALL, self.side)
         # print(f'self.side:{self.side}, self.COLUMNS:{self.COLUMNS}')
         super().__init__(self.side, 'Driver')
+        self.setParent(parent)
+        self.load_data()
 
     def create_dev_op_thread(self, op='get', lane=None, *args):
         if lane is not None:

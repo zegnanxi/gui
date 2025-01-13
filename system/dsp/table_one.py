@@ -22,9 +22,11 @@ class TableOne(BaseFrame):
     ]
     LANE_COUNT = 4
 
-    def __init__(self, side):
+    def __init__(self, side, parent):
         self.side = side
         super().__init__(self.side, 'TableOne', {'strech': True})
+        self.setParent(parent)
+        self.load_data()
 
     def create_dev_op_thread(self, op='get', lane=None, *args):
         if lane is not None:

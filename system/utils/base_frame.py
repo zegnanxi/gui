@@ -175,7 +175,7 @@ class BaseTable(QTableView):
         # 检查是否有垂直表头配置
         self.vertical_header_config = next((col for col in columns if col.get('type') == 'vertical header'), None)
         # 移除垂直表头配置后的列定义
-        self.columns = [col for col in columns if col != self.vertical_header_config]        
+        self.columns = [col for col in columns if col != self.vertical_header_config]
         self.model = BaseTableModel(self.columns)
         self._init_table(table_properties)
         self._apply_styles()
@@ -216,9 +216,8 @@ class BaseTable(QTableView):
 
             QHeaderView::section {
                 background-color: #F8F9FA;
-                padding: 6px;
                 border: none;
-                border-right: 1px solid #E0E0E0;
+                border-right: 1px solid #D0D0D0;
                 border-bottom: 1px solid #E0E0E0;
                 font-weight: bold;
                 color: #444444;
@@ -491,8 +490,7 @@ class ConsoleWidget(QWidget):
         clearBtn = QToolButton()
         clearBtn.setToolTip('Clear console log')
         clearIcon = QIcon()
-        clearIcon.addFile(u":/icon/image/icon/remove.ppg",
-                          QSize(), QIcon.Normal, QIcon.Off)
+        clearIcon.addFile(u":/icon/image/icon/remove.png", QSize(), QIcon.Normal, QIcon.Off)
         clearBtn.setIcon(clearIcon)
         clearBtn.setIconSize(QSize(15, 15))
         return clearBtn

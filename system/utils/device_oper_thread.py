@@ -12,7 +12,7 @@ class DeviceOperThread(QThread):
 
         self.command = command
         self.side = side
-        self.lane_list = lane_list
+        self.lane_list = list(lane_list)
         self.extra_args = args
 
     def run(self):

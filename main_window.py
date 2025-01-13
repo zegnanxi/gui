@@ -15,6 +15,8 @@ import resources_rc
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        # 初始化表格对象列表为 None
+        self.tables = []
         self.setup_ui()
         self.setup_connections()
 
@@ -59,12 +61,6 @@ class MainWindow(QMainWindow):
         # 禁用第一个标签页的关闭按钮
         self.tab_widget.tabBar().setTabButton(0, QTabBar.ButtonPosition.RightSide, None)
 
-        # 创建表格页
-        self.table_one = TableOne('Line Side')
-        self.table_two = TableTwo('Host Side')
-        self.table_three = TableThree('Line Side')
-        self.tables = [self.table_one, self.table_two, self.table_three]
-
         # 设置窗口属性
         self.resize(1500, 1000)
         self.setWindowTitle("多功能表格示例")
@@ -78,25 +74,37 @@ class MainWindow(QMainWindow):
 
     def open_table_tab(self, index: int):
         """打开表格标签页"""
+
         # 检查该表格页是否已经打开
-        for i in range(self.tab_widget.count()):
-            if self.tab_widget.widget(i) == self.tables[index]:
-                self.tab_widget.setCurrentIndex(i)
-                return
+        tabName = f'table_{index + 1}'
+        if tabName in self.tables:
+            real_index = self.tables.index(tabName) + 1
+            self.tab_widget.setCurrentIndex(real_index)
+            return
+
+        if index == 0:
+            table = TableOne('Line Side', self)
+            self.tables.append(tabName)
+        elif index == 1:
+            table = TableTwo('Host Side', self)
+            self.tables.append(tabName)
+        elif index == 2:
+            table = TableThree('Line Side', self)
+            self.tables.append(tabName)
 
         # 如果未打开，添加新标签页
-        tab_title = f"表格 {index + 1}"
-        self.tab_widget.addTab(self.tables[index], tab_title)
+        self.tab_widget.addTab(table, tabName)
         tab_index = self.tab_widget.count() - 1
         self.tab_widget.setCurrentIndex(tab_index)
 
         # # 修改这里，直接调用表格的加载方法
-        self.tables[index].load_data()
+        # self.tables[index].load_data()
 
     def close_tab(self, index: int):
         """关闭标签页"""
         if index == 0:
             return
+        self.tables.pop(index - 1)
         self.tab_widget.removeTab(index)
 
     def update_rpc_server_addr(self, new_addr: str):

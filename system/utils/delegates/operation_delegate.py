@@ -53,7 +53,7 @@ class OperationDelegate(QStyledItemDelegate):
         """从行数据中获取lane值"""
         view = self.parent()
         model = view.model
-        
+
         # 获取垂直表头配置
         vertical_header_config = view.vertical_header_config
         if vertical_header_config:
@@ -63,20 +63,20 @@ class OperationDelegate(QStyledItemDelegate):
             prefix = vertical_header_config['index']
             if header_text.startswith(prefix):
                 return int(header_text[len(prefix):])
-        
+
         # 如果没有垂直表头配置，则使用行号作为lane
         return row
 
     def _handle_get_clicked(self, row):
         """处理Get按钮点击事件"""
         view = self.parent()
-        
+
         # 选中当前行
         view.selectRow(row)
-        
+
         # 获取lane值
         lane = self._get_lane_from_row(row)
-        
+
         # 获取BaseFrame实例
         base_frame = self._get_base_frame(view)
         if base_frame:
@@ -91,20 +91,32 @@ class OperationDelegate(QStyledItemDelegate):
         """处理Set按钮点击事件"""
         view = self.parent()
         model = view.model
-        
+
         # 选中当前行
         view.selectRow(row)
-        
+
         # 收集可编辑列的数据
         row_data = {}
         for col, header in enumerate(view.columns[:-1]):
             if header.get('editable', False):
                 value = model.data(model.index(row, col))
+                # 根据列配置进行类型转换
+                data_type = header.get('type', 'int')
+                try:
+                    if data_type == 'int':
+                        value = int(value)
+                    elif data_type == 'float':
+                        value = float(value)
+                    # 可以根据需要添加其他类型的转换
+                except (ValueError, TypeError):
+                    print(f"无法将值 '{value}' 转换为 {data_type} 类型")
+                    continue
+
                 row_data[header.get('index')] = value
-        
+
         # 获取lane值
         lane = self._get_lane_from_row(row)
-        
+
         # 获取BaseFrame实例
         base_frame = self._get_base_frame(view)
         if base_frame:
