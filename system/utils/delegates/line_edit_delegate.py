@@ -79,22 +79,27 @@ class LineEditDelegate(QStyledItemDelegate):
     def validate_input(self, editor, index, text, value_type):
         try:
             if not text:  # 允许空值
-                self._update_editor_state(editor, modified=True)
-                editor.setProperty("error", False)
-                self.updateBackground(editor, index)
-                editor.setToolTip("")
-                return
+                raise ValueError('empty value')
 
-            if value_type == 'int':
-                int(text)  # 尝试转换为整数
+            # 根据类型转换值
+            converted_value = None
+            if value_type == 'boolean':
+                converted_value = bool(text)
             elif value_type == 'float':
-                float(text)  # 尝试转换为浮点数
+                converted_value = float(text)
+            elif value_type == 'str':
+                converted_value = str(text)
+            else:
+                converted_value = int(text)
 
             # 验证成功，更新状态
             self._update_editor_state(editor, modified=True)
             editor.setProperty("error", False)
             editor.setToolTip("")
             self.updateBackground(editor, index)
+
+            # 更新model数据
+            index.model().setData(index, converted_value, Qt.EditRole)
 
         except ValueError:
             # 验证失败，显示错误状态
@@ -107,7 +112,7 @@ class LineEditDelegate(QStyledItemDelegate):
 
     def setEditorData(self, editor, index):
         value = index.model().data(index, Qt.DisplayRole)
-        editor.setText(str(value) if value is not None else "")
+        editor.setText(value)
         self._update_editor_state(editor, modified=False)
 
     def _update_editor_state(self, editor, modified=False):

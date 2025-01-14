@@ -17,7 +17,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
 
         # 创建combobox
         combobox = QComboBox(parent)
-        
+
         # 添加选项
         for item in self.enum_options:
             combobox.addItem(item['label'], item['value'])
@@ -29,14 +29,14 @@ class ComboBoxDelegate(QStyledItemDelegate):
 
         def on_combo_clicked():
             view.selectRow(index.row())
-        
+
         combobox.showPopup = lambda: (QComboBox.showPopup(combobox), on_combo_clicked())
 
         if is_editable:
             def on_value_changed():
                 index.model().setData(
                     index,
-                    str(combobox.currentData()),
+                    combobox.currentData(),
                     Qt.DisplayRole
                 )
                 view.update_editable_states(index.row())
@@ -57,7 +57,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
             try:
                 for i in range(combobox.count()):
                     item_value = combobox.itemData(i)
-                    if isinstance(item_value, int) and str(item_value) == str(value):
+                    if isinstance(item_value, int) and item_value == value:
                         combobox.setCurrentIndex(i)
                         break
                     elif item_value == value:
@@ -75,4 +75,4 @@ class ComboBoxDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         # 只绘制背景
         style = option.widget.style()
-        style.drawPrimitive(QStyle.PE_PanelItemViewItem, option, painter, option.widget)        
+        style.drawPrimitive(QStyle.PE_PanelItemViewItem, option, painter, option.widget)

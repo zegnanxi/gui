@@ -98,22 +98,12 @@ class OperationDelegate(QStyledItemDelegate):
         # 收集可编辑列的数据
         row_data = {}
         for col, header in enumerate(view.columns[:-1]):
-            if header.get('editable', False):
-                value = model.data(model.index(row, col))
-                # 根据列配置进行类型转换
-                data_type = header.get('type', 'int')
-                try:
-                    if data_type == 'boolean':
-                        value = bool(value)
-                    elif data_type == 'float':
-                        value = float(value)
-                    else:
-                        value = int(value)
-                except (ValueError, TypeError):
-                    print(f"Unable to convert value '{value}' to type {data_type}")
-                    continue
+            editable = header.get('editable', False)
+            if not isinstance(editable, bool):
+                editable = view.check_editable(col, row)
 
-                row_data[header.get('index')] = value
+            if editable is True:
+                row_data[header.get('index')] = model.data(model.index(row, col))
 
         # 获取lane值
         lane = self._get_lane_from_row(row)

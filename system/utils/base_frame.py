@@ -313,13 +313,12 @@ class BaseTable(QTableView):
         for col, column_info in enumerate(self.columns[0:-1]):
             # 获取值的键名
             value_key = column_info['index'] if isinstance(column_info, dict) else column_info
-            value_key = value_key.removesuffix('.rw')
-
             value = row_data.get(value_key)
             if value is not None:
                 # 设置数据值
-                self.model.setData(self.model.index(row, col), f'{
-                                   value:.5g}' if isinstance(value, float) else str(value))
+                # self.model.setData(self.model.index(row, col), f'{
+                #                    value:.5g}' if isinstance(value, float) else str(value))
+                self.model.setData(self.model.index(row, col), value)
                 self.model.setData(self.model.index(row, col), Qt.AlignCenter, Qt.TextAlignmentRole)
 
                 data_delegate = self.itemDelegateForColumn(col)
