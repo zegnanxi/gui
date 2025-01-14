@@ -3,32 +3,6 @@ from ..utils.base_frame import BaseFrame
 
 
 class TableThree(BaseFrame):
-    # 类级别常量定义
-    # COLUMNS = [
-    #     {'index': 'lane', 'type': 'vertical header'},
-    #     {'index': 'afe_mode', 'type': 'select', 'width': 120,'editable': True, 'ui': {
-    #         'enum': [
-    #             {'label': 'Normal', 'value': 1},
-    #             {'label': 'Debug', 'value': 2},
-    #             {'label': 'Test', 'value': 3}
-    #         ]
-    #     }},
-    #     {'index': 'afe_disable', 'type': 'select', 'width': 120, 'ui': {
-    #         'enum': [
-    #             {'label': 'Normal', 'value': 1},
-    #             {'label': 'Debug', 'value': 2},
-    #             {'label': 'Test', 'value': 3}
-    #         ]
-    #     }},
-    #     {'index': 'afe_1', 'type': 'checkbox', 'editable': True},
-    #     {'index': 'afe_2'},
-    #     {'index': 'afe_6666666666666666666666663', 'type': 'str', 'editable': True},
-    #     {'index': 'afe_4', 'type': 'boolean', 'editable': True},
-    #     {'index': 'afe_5'},
-    #     {'index': 'Operation', 'type': 'btn', 'width': 100, 'buttons': ['get']}
-    # ]
-    # LANE_COUNT = 4
-
     COLUMNS = [
         {'index': 'lane0', 'type': 'checkbox', 'editable': True},
         {'index': 'lane1', 'type': 'checkbox', 'editable': True},
@@ -43,7 +17,7 @@ class TableThree(BaseFrame):
 
     def __init__(self, side, parent):
         self.side = side
-        super().__init__(self.side, 'TableThree', {'strech': True, 'spliter_size': [100, 400]})
+        super().__init__(self.side, 'TableThree', {'strech': True, 'row_select': False, 'spliter_size': [100, 400]})
         self.setParent(parent)
         self.load_data()
 

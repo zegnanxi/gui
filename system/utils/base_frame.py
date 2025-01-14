@@ -287,8 +287,11 @@ class BaseTable(QTableView):
         self.setWordWrap(False)
 
         # 设置选择行为
-        self.setSelectionMode(QTableView.SingleSelection)
-        self.setSelectionBehavior(QTableView.SelectRows)
+        if table_properties.get('row_select', True):
+            self.setSelectionMode(QTableView.SingleSelection)
+            self.setSelectionBehavior(QTableView.SelectRows)
+        else:
+            self.setSelectionMode(QTableView.NoSelection)  # 禁用选择功能
 
         # 添加以下设置来禁用自动滚动
         self.setAutoScroll(False)
