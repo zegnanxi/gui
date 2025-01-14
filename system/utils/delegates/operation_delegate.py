@@ -12,7 +12,6 @@ class OperationDelegate(QStyledItemDelegate):
         widget = QWidget(parent)
         layout = QHBoxLayout(widget)
         layout.setContentsMargins(5, 5, 5, 5)
-        layout.setSpacing(8)
 
         # 从prop中获取按钮配置
         buttons = self.prop.get('buttons', ['set', 'get'])  # 默认显示get和set按钮

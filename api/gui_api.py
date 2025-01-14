@@ -23,7 +23,7 @@ class GuiApi:
         values['prop_9'] = random.choice([True, False])
         values['prop_10'] = random.choice([True, False])
         values['prop_11'] = random.randint(0, 1)
-        values['prop_12'] = random.randint(0, 10)
+        values['prop_12'] = round(random.uniform(0, 10), 10)
         return True, values
 
     @classmethod

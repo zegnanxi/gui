@@ -38,7 +38,7 @@ class CheckboxDelegate(QStyledItemDelegate):
 
         if view.check_editable(index.column(), index.row()):
             checkbox.stateChanged.connect(
-                lambda state: index.model().setData(index, "1" if state else "0", Qt.DisplayRole)
+                lambda state: index.model().setData(index, 1 if state else 0, Qt.DisplayRole)
             )
 
         layout.addWidget(checkbox)

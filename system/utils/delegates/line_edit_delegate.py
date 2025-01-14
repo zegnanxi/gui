@@ -112,7 +112,7 @@ class LineEditDelegate(QStyledItemDelegate):
 
     def setEditorData(self, editor, index):
         value = index.model().data(index, Qt.DisplayRole)
-        editor.setText(value)
+        editor.setText(f'{value:.5g}' if isinstance(value, float) else str(value))
         self._update_editor_state(editor, modified=False)
 
     def _update_editor_state(self, editor, modified=False):

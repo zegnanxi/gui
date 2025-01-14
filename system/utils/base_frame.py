@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPlainTextEdit, QToolButton, QSplitter, QTableView)
-from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont, QColor
+from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont
 from PySide6.QtCore import Qt, QSize, Slot
 
 from .progress_indicator import QProgressIndicator
@@ -42,7 +42,7 @@ class BaseFrame(QWidget):
 
         font = QFont()
         font.setBold(True)
-        label = QLabel(f'{side} - {model}')
+        label = QLabel(f'{side} - {model}:')
         label.setFont(font)
 
         upperLayout = QVBoxLayout()
