@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPlainTextEdit, QToolButton, QSplitter, QTableView)
-from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont
+from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont, QColor
 from PySide6.QtCore import Qt, QSize, Slot
 
 from .progress_indicator import QProgressIndicator
@@ -29,7 +29,7 @@ class BaseFrame(QWidget):
                 results.append(item)
         return results
 
-    def __init__(self, side: str, model: str, table_properties: dict = None):
+    def __init__(self, side: str, model: str, table_properties: dict = {}):
         super().__init__()
         self.fetcher_thread = None
         self._init_ui(side, model, table_properties)
@@ -53,7 +53,7 @@ class BaseFrame(QWidget):
         upperWidget.setLayout(upperLayout)
 
         mainLayout = QVBoxLayout()
-        mainLayout.addWidget(self._create_splitter(upperWidget, self.consoleWidget))
+        mainLayout.addWidget(self._create_splitter(upperWidget, self.consoleWidget, table_properties))
         self.setLayout(mainLayout)
 
     def _create_spinner(self):
@@ -61,12 +61,12 @@ class BaseFrame(QWidget):
         spinner.hide()
         return spinner
 
-    def _create_splitter(self, upperWidget, lowerWidget):
+    def _create_splitter(self, upperWidget, lowerWidget, table_properties: dict):
         splitter = QSplitter()
         splitter.setOrientation(Qt.Orientation.Vertical)
         splitter.addWidget(upperWidget)
         splitter.addWidget(lowerWidget)
-        splitter.setSizes([200, 100])
+        splitter.setSizes(table_properties.get('spliter_size', [200, 100]))
         return splitter
 
     def _init_connections(self):
@@ -155,7 +155,14 @@ class BaseFrame(QWidget):
 class BaseTableModel(QStandardItemModel):
     def __init__(self, columns):
         super().__init__()
-        self.setHorizontalHeaderLabels([item['index'] for item in columns])
+        bold_font = QFont()
+        bold_font.setBold(True)
+
+        # 设置表头标签并应用粗体字体
+        for col, item in enumerate(columns):
+            header_item = QStandardItem(item['index'])
+            header_item.setFont(bold_font)
+            self.setHorizontalHeaderItem(col, header_item)
 
     def flags(self, index):
         if not index.isValid():
@@ -185,58 +192,21 @@ class BaseTable(QTableView):
         self.setStyleSheet("""
             QTableView {
                 background-color: #FFFFFF;
-                gridline-color: #E0E0E0;
-                border: 1px solid #D0D0D0;
+                border: 1px solid #E0E0E0;
                 border-radius: 4px;
-                selection-background-color: #E8F0FE;
-                selection-color: #000000;
             }
 
             QTableView::item:selected {
                 background-color: #E8F0FE;
-                color: #000000;
-            }
-
-            QTableView::item:focus {
-                background-color: #E8F0FE;
-                border: none;
-                color: #000000;
-            }
-
-            QTableView::item {
-                background-color: #FFFFFF;
-                border: none;
-                margin: 1px;
-                alignment: center;
             }
 
             QHeaderView {
                 background-color: #FFFFFF;
             }
 
-            QHeaderView::section {
-                background-color: #F8F9FA;
-                border: none;
-                border-right: 1px solid #D0D0D0;
-                border-bottom: 1px solid #E0E0E0;
-                font-weight: bold;
-                color: #444444;
-            }
-
             QHeaderView::section:vertical {
-                background-color: #F8F9FA;
-                border-right: 1px solid #D0D0D0;
-            }
-
-            QHeaderView::section:horizontal {
-                background-color: #DADCE0;
-                border-top: 1px solid #D0D0D0;
-                border-left: 1px solid #FFFFFF;
-            }
-
-            QTableCornerButton::section {
-                background-color: #DADCE0;
-                border-right: 1px solid #FFFFFF;
+                background-color: #FFFFFF;
+                border: 1px solid #E0E0E0;
             }
         """)
 
@@ -281,7 +251,6 @@ class BaseTable(QTableView):
 
     def _setup_table_properties(self, table_properties: dict):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setSelectionBehavior(QTableView.SelectRows)
         self.setHorizontalScrollMode(QTableView.ScrollPerPixel)
 
         # 根据配置显示或隐藏垂直表头
@@ -302,15 +271,20 @@ class BaseTable(QTableView):
         # header.setStretchLastSection(True)
         header.setDefaultAlignment(Qt.AlignCenter)
         header.setHighlightSections(False)
-        header.setFixedHeight(25)  # 设置水平表头高度为30
         header.setMinimumWidth(100)
+
+        # 添加corner button的设置
+        self.setCornerButtonEnabled(False)
+        # corner_button = QLabel(self.vertical_header_config.get("index", ""))
+        # corner_button.setAlignment(Qt.AlignCenter)
+        # self.setCornerButtonEnabled(True)
+        # self.setCornerWidget(corner_button)
 
         # 设置表格属性
         self.setShowGrid(True)
         self.setGridStyle(Qt.SolidLine)
         self.setAlternatingRowColors(False)
         self.setWordWrap(False)
-        self.setCornerButtonEnabled(False)
 
         # 设置选择行为
         self.setSelectionMode(QTableView.SingleSelection)
@@ -397,7 +371,7 @@ class BaseTable(QTableView):
     def _setup_selection_handling(self):
         """设置选择变化的处理"""
         def on_selection_changed(selected, deselected):
-            # 更新所有可见编辑器的背景色
+            # 更新编辑器背景色
             for row in range(self.model.rowCount()):
                 for col in range(self.model.columnCount()):
                     index = self.model.index(row, col)

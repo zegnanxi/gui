@@ -43,7 +43,7 @@ class TableThree(BaseFrame):
 
     def __init__(self, side, parent):
         self.side = side
-        super().__init__(self.side, 'TableThree', {'strech': True})
+        super().__init__(self.side, 'TableThree', {'strech': True, 'spliter_size': [100, 400]})
         self.setParent(parent)
         self.load_data()
 

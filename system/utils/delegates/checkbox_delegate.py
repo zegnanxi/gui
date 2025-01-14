@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QStyledItemDelegate, QWidget, QHBoxLayout, QCheckBox
+from PySide6.QtWidgets import QStyledItemDelegate, QWidget, QHBoxLayout, QCheckBox, QStyle
 from PySide6.QtCore import Qt, QSize
 
 
@@ -61,4 +61,5 @@ class CheckboxDelegate(QStyledItemDelegate):
             checkbox.setEnabled(not readonly)
 
     def paint(self, painter, option, index):
-        pass
+        style = option.widget.style()
+        style.drawPrimitive(QStyle.PE_PanelItemViewItem, option, painter, option.widget)

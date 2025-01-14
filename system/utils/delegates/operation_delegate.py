@@ -15,7 +15,7 @@ class OperationDelegate(QStyledItemDelegate):
         layout.setSpacing(8)
 
         # 从prop中获取按钮配置
-        buttons = self.prop.get('buttons', ['get', 'set'])  # 默认显示get和set按钮
+        buttons = self.prop.get('buttons', ['set', 'get'])  # 默认显示get和set按钮
 
         # 创建配置的按钮
         for btn_type in buttons:
@@ -103,13 +103,14 @@ class OperationDelegate(QStyledItemDelegate):
                 # 根据列配置进行类型转换
                 data_type = header.get('type', 'int')
                 try:
-                    if data_type == 'int':
-                        value = int(value)
+                    if data_type == 'boolean':
+                        value = bool(value)
                     elif data_type == 'float':
                         value = float(value)
-                    # 可以根据需要添加其他类型的转换
+                    else:
+                        value = int(value)
                 except (ValueError, TypeError):
-                    print(f"无法将值 '{value}' 转换为 {data_type} 类型")
+                    print(f"Unable to convert value '{value}' to type {data_type}")
                     continue
 
                 row_data[header.get('index')] = value
