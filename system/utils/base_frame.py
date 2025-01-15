@@ -201,12 +201,20 @@ class BaseTable(QTableView):
             }
 
             QHeaderView {
-                background-color: #E0E0E0;
+                background-color: #FFFFFF;
             }
 
             QHeaderView::section:vertical {
                 background-color: #FFFFFF;
+                border: none;
                 border-right: 1px solid #E0E0E0;
+                border-bottom: 1px solid #E0E0E0;
+                margin-bottom: 0px;
+            }
+
+            QTableCornerButton::section {
+                border-bottom: 1px solid #E0E0E0;
+                margin-bottom: 0px;
             }
         """)
 

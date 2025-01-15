@@ -180,8 +180,6 @@ def main():
 
     # # 执行批处理文件
     # window.execute_bat_file(args.rpc_server)
-    print(f"Current Style: {app.style().objectName()}")
-    print(f"Available Styles: {QStyleFactory.keys()}")
     window.show()
     sys.exit(app.exec())
 
