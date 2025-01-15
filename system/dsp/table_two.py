@@ -1,6 +1,8 @@
 from ..utils.device_oper_thread import DeviceOperThread
 from ..utils.base_frame import BaseFrame
 
+from system.dsp.HW_0404_EVB.wapi_cmds import WAPICmds
+
 
 class TableTwo(BaseFrame):
     # 类级别常量定义
@@ -38,6 +40,7 @@ class TableTwo(BaseFrame):
         # print(f'self.side:{self.side}, self.COLUMNS:{self.COLUMNS}')
         super().__init__(self.side, 'Driver')
         self.setParent(parent)
+        self.wapi_cmds = WAPICmds()
         self.load_data()
 
     def create_dev_op_thread(self, op='get', lane=None, *args):

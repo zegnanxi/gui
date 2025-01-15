@@ -4,12 +4,13 @@ from system.dsp.table_one import TableOne
 from system.dsp.table_two import TableTwo
 from system.dsp.table_three import TableThree
 import sys
-from PySide6.QtWidgets import QApplication
-import yaml  # 添加在文件开头的导入部分
-import argparse
+from PySide6.QtWidgets import QStyleFactory
+# import yaml  # 添加在文件开头的导入部分
+# import argparse
 import subprocess
 import os
-import resources_rc
+import qdarktheme
+from qdarktheme.qtpy.QtWidgets import QApplication
 
 
 class MainWindow(QMainWindow):
@@ -169,8 +170,9 @@ def main():
 
     # # 解析命令行参数
     # args = parser.parse_args()
-
+    qdarktheme.enable_hi_dpi()
     app = QApplication(sys.argv)
+    qdarktheme.setup_theme('auto')
     window = MainWindow()
 
     # 更新RPC服务器地址
@@ -178,7 +180,8 @@ def main():
 
     # # 执行批处理文件
     # window.execute_bat_file(args.rpc_server)
-
+    print(f"Current Style: {app.style().objectName()}")
+    print(f"Available Styles: {QStyleFactory.keys()}")
     window.show()
     sys.exit(app.exec())
 
