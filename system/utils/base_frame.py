@@ -30,15 +30,25 @@ class BaseFrame(QWidget):
         return results
 
     def __init__(self, side: str, model: str, table_properties: dict = {}):
+        # 设置默认值
+        default_properties = {
+            'strech': False,          # 默认不拉伸
+            'row_select': True,       # 默认允许行选择
+            'spliter_size': [200, 100]  # 默认分割器尺寸
+        }
+        # 使用默认值更新传入的属性
+        self.table_properties = default_properties.copy()
+        self.table_properties.update(table_properties)
+
         super().__init__()
         self.fetcher_thread = None
-        self._init_ui(side, model, table_properties)
+        self._init_ui(side, model)
         self._init_connections()
 
-    def _init_ui(self, side: str, model: str, table_properties: dict):
+    def _init_ui(self, side: str, model: str):
         self.spinner = self._create_spinner()
         self.consoleWidget = ConsoleWidget()
-        self.tableWidget = BaseTable(self.COLUMNS, table_properties)
+        self.tableWidget = BaseTable(self.COLUMNS, self.table_properties)
 
         font = QFont()
         font.setBold(True)
@@ -53,7 +63,7 @@ class BaseFrame(QWidget):
         upperWidget.setLayout(upperLayout)
 
         mainLayout = QVBoxLayout()
-        mainLayout.addWidget(self._create_splitter(upperWidget, self.consoleWidget, table_properties))
+        mainLayout.addWidget(self._create_splitter(upperWidget, self.consoleWidget))
         self.setLayout(mainLayout)
 
     def _create_spinner(self):
@@ -61,12 +71,12 @@ class BaseFrame(QWidget):
         spinner.hide()
         return spinner
 
-    def _create_splitter(self, upperWidget, lowerWidget, table_properties: dict):
+    def _create_splitter(self, upperWidget, lowerWidget):
         splitter = QSplitter()
         splitter.setOrientation(Qt.Orientation.Vertical)
         splitter.addWidget(upperWidget)
         splitter.addWidget(lowerWidget)
-        splitter.setSizes(table_properties.get('spliter_size', [200, 100]))
+        splitter.setSizes(self.table_properties.get('spliter_size'))
         return splitter
 
     def _init_connections(self):
@@ -295,7 +305,7 @@ class BaseTable(QTableView):
         self.setWordWrap(False)
 
         # 设置选择行为
-        if table_properties.get('row_select', True):
+        if table_properties.get('row_select'):
             self.setSelectionMode(QTableView.SingleSelection)
             self.setSelectionBehavior(QTableView.SelectRows)
         else:

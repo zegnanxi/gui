@@ -4,7 +4,6 @@ from system.dsp.table_one import TableOne
 from system.dsp.table_two import TableTwo
 from system.dsp.table_three import TableThree
 import sys
-from PySide6.QtWidgets import QStyleFactory
 # import yaml  # 添加在文件开头的导入部分
 # import argparse
 import subprocess

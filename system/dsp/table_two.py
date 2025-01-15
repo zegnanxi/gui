@@ -3,12 +3,6 @@ from ..utils.base_frame import BaseFrame
 
 
 class TableTwo(BaseFrame):
-    # 类级别常量定义
-    # COLUMNS_ALL = ["lane", "driver_mode.rw", "prop_1", "prop_2ls.ls.rw", "prop_2hs.hs.rw",
-    #                "prop_6666666666666666666666663",
-    #                "prop_4", "prop_5.ls", "prop_6.rw", "prop_777777777777abadafddasfadsfadsfadsf", "prop_8", "prop_9", "prop_10", "prop_11",
-    #                "prop_12", "Operation"]
-
     COLUMNS_ALL = [
         {'index': 'lane', 'type': 'vertical header'},
         {'index': 'driver_mode', 'editable': True},
@@ -30,12 +24,11 @@ class TableTwo(BaseFrame):
         {'index': 'Operation', 'type': 'btn', 'width': 100, 'buttons': ['get']}
     ]
 
-    LANE_COUNT = 4
+    LANE_COUNT = 8
 
     def __init__(self, side, parent):
         self.side = side
         self.COLUMNS = self._process_columns(self.COLUMNS_ALL, self.side)
-        # print(f'self.side:{self.side}, self.COLUMNS:{self.COLUMNS}')
         super().__init__(self.side, 'Driver')
         self.setParent(parent)
         self.load_data()
