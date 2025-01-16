@@ -1,11 +1,14 @@
-from PySide6.QtWidgets import (QStyledItemDelegate, QWidget, QHBoxLayout,
+from PySide6.QtWidgets import (QStyledItemDelegate, QWidget, QHBoxLayout, QTableView,
                                QToolButton, QSizePolicy)
+from PySide6.QtGui import QStandardItemModel
+from PySide6.QtCore import QModelIndex
 
 
 class OperationDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None, prop=None):
+    def __init__(self, parent=None, prop=None, horizontal=True):
         super().__init__(parent)
         self.prop = prop or {}  # 存储按钮配置
+        self.horizontal = horizontal
 
     def createEditor(self, parent, option, index):
         # 创建容器widget
@@ -21,9 +24,9 @@ class OperationDelegate(QStyledItemDelegate):
             btn = QToolButton(widget)
             btn.setText(btn_type.capitalize())  # 首字母大写
             if btn_type.lower() == 'get':
-                btn.clicked.connect(lambda: self._handle_get_clicked(index.row()))
+                btn.clicked.connect(lambda: self._handle_get_clicked(index))
             elif btn_type.lower() == 'set':
-                btn.clicked.connect(lambda: self._handle_set_clicked(index.row()))
+                btn.clicked.connect(lambda: self._handle_set_clicked(index))
             btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             layout.addWidget(btn, 1)
 
@@ -48,33 +51,38 @@ class OperationDelegate(QStyledItemDelegate):
 
         return widget
 
-    def _get_lane_from_row(self, row):
-        """从行数据中获取lane值"""
-        view = self.parent()
-        model = view.model
+    def _get_lane_from_index(self, index: QModelIndex):
+        view: QTableView = self.parent()
+        model: QStandardItemModel = view.model
 
-        # 获取垂直表头配置
-        vertical_header_config = view.vertical_header_config
-        if vertical_header_config:
-            # 获取表头文本
-            header_text = model.verticalHeaderItem(row).text()
+        # 根据方向获取正确的索引
+        if self.horizontal:
+            pos = index.row()
+            header_text = model.verticalHeaderItem(pos).text()
+        else:
+            pos = index.column()
+            header_text = model.horizontalHeaderItem(pos).text()
+
+        if view.vertical_header_config:
             # 移除配置中的index前缀
-            prefix = vertical_header_config['index']
+            prefix = view.vertical_header_config['index']
             if header_text.startswith(prefix):
                 return int(header_text[len(prefix):])
 
-        # 如果没有垂直表头配置，则使用行号作为lane
-        return row
+        # 如果没有表头配置，则使用索引位置作为lane
+        return pos
 
-    def _handle_get_clicked(self, row):
+    def _handle_get_clicked(self, index: QModelIndex):
         """处理Get按钮点击事件"""
         view = self.parent()
 
-        # 选中当前行
-        view.selectRow(row)
+        if self.horizontal:
+            view.selectRow(index.row())
+        else:
+            view.selectColumn(index.column())
 
         # 获取lane值
-        lane = self._get_lane_from_row(row)
+        lane = self._get_lane_from_index(index)
 
         # 获取BaseFrame实例
         base_frame = self._get_base_frame(view)
@@ -86,26 +94,35 @@ class OperationDelegate(QStyledItemDelegate):
             base_frame.fetcher_thread.finished.connect(base_frame._hide_loading_state)
             base_frame.fetcher_thread.start()
 
-    def _handle_set_clicked(self, row):
+    def _handle_set_clicked(self, index: QModelIndex):
         """处理Set按钮点击事件"""
-        view = self.parent()
-        model = view.model
+        view: QTableView = self.parent()
+        model: QStandardItemModel = view.model
 
-        # 选中当前行
-        view.selectRow(row)
-
-        # 收集可编辑列的数据
         row_data = {}
-        for col, header in enumerate(view.columns[:-1]):
-            editable = header.get('editable', False)
-            if not isinstance(editable, bool):
-                editable = view.check_editable(col, row)
+        if self.horizontal:
+            view.selectRow(index.row())
+            for col, header in enumerate(view.columns[:-1]):
+                item_index = model.index(index.row(), col)
+                editable = header.get('editable', False)
+                if not isinstance(editable, bool):
+                    editable = view.check_editable(item_index)
 
-            if editable is True:
-                row_data[header.get('index')] = model.data(model.index(row, col))
+                if editable is True:
+                    row_data[header.get('index')] = model.data(item_index)
+        else:
+            view.selectColumn(index.column())
+            for row, header in enumerate(view.columns[:-1]):
+                item_index = model.index(row, index.column())
+                editable = header.get('editable', False)
+                if not isinstance(editable, bool):
+                    editable = view.check_editable(item_index)
+
+                if editable is True:
+                    row_data[header.get('index')] = model.data(item_index)
 
         # 获取lane值
-        lane = self._get_lane_from_row(row)
+        lane = self._get_lane_from_index(index)
 
         # 获取BaseFrame实例
         base_frame = self._get_base_frame(view)

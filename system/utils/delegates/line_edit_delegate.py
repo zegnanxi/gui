@@ -48,8 +48,7 @@ class LineEditDelegate(QStyledItemDelegate):
 
         # 检查是否可编辑
         view = self.parent()
-        is_editable = view.check_editable(index.column(), index.row())
-        self.setEditorReadOnly(editor, not is_editable)
+        self.setEditorReadOnly(editor, not view.check_editable(index))
 
         # 初始设置背景色
         self.updateBackground(editor, index)
@@ -57,10 +56,8 @@ class LineEditDelegate(QStyledItemDelegate):
         # 存储index供后续使用
         editor.setProperty("current_index", index)
 
-        # 只有在可编辑时才添加验证
-        if is_editable:
-            value_type = self.prop.get('type', 'int')
-            editor.textChanged.connect(lambda text: self.validate_input(editor, index, text, value_type))
+        value_type = self.prop.get('type', 'int')
+        editor.textChanged.connect(lambda text: self.validate_input(editor, index, text, value_type))
 
         return editor
 

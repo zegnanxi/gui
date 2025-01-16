@@ -24,7 +24,7 @@ class TableOne(BaseFrame):
 
     def __init__(self, side, parent):
         self.side = side
-        super().__init__(self.side, 'TableOne', {'strech': True, 'horizontal': True})
+        super().__init__(self.side, 'TableOne', {'strech': True, 'horizontal': False})
         self.setParent(parent)
         self.load_data()
 

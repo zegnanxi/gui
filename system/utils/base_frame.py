@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPlainTextEdit, QToolButton, QSplitter, QTableView)
 from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont
-from PySide6.QtCore import Qt, QSize, Slot
+from PySide6.QtCore import Qt, QSize, Slot, QModelIndex
 
 from .progress_indicator import QProgressIndicator
 from .delegates import (
@@ -251,7 +251,7 @@ class BaseTable(QTableView):
         self.setModel(self.model)
         self.table_properties = table_properties  # 存储table_properties以供后续使用
         self._setup_table_properties(table_properties)
-        self._setup_delegates()
+        self._setup_delegates(table_properties.get('horizontal'))
         self._setup_selection_handling()
 
         # 调整列宽
@@ -312,14 +312,12 @@ class BaseTable(QTableView):
         self.setAutoScroll(False)
         self.setFocusPolicy(Qt.NoFocus)
 
-    def _setup_delegates(self):
+    def _setup_delegates(self, horizontal: bool):
         # 根据表格方向选择代理设置函数
-        set_delegate = (self.setItemDelegateForColumn
-                        if self.table_properties.get('horizontal')
-                        else self.setItemDelegateForRow)
+        set_delegate = self.setItemDelegateForColumn if horizontal else self.setItemDelegateForRow
 
         # 设置最后一列/行的操作代理
-        set_delegate(len(self.columns) - 1, OperationDelegate(self, prop=self.columns[-1]))
+        set_delegate(len(self.columns) - 1, OperationDelegate(self, prop=self.columns[-1], horizontal=horizontal))
 
         # 设置其他列/行的代理
         for idx, column_info in enumerate(self.columns[:-1]):
@@ -430,54 +428,39 @@ class BaseTable(QTableView):
             if self.table_properties.get('horizontal'):
                 index = self.model.index(row, prop_index)
                 delegate = self.itemDelegateForColumn(prop_index)
-                print(f'1row: {row}, col: {col}, prop_index: {prop_index}')
-                is_editable = self.check_editable(prop_index, row)
             else:
                 index = self.model.index(prop_index, col)
                 delegate = self.itemDelegateForRow(prop_index)
-                print(f'2row: {row}, col: {col}, prop_index: {prop_index}')
-                is_editable = self.check_editable(col, prop_index)
 
             editor = self.indexWidget(index)
-            if editor:
-                # is_editable = self.check_editable(col, row)
+            if editor and hasattr(delegate, 'setEditorReadOnly'):
+                delegate.setEditorReadOnly(editor, not self.check_editable(index))
 
-                # 使用新的方法设置只读状态
-                if hasattr(delegate, 'setEditorReadOnly'):
-                    delegate.setEditorReadOnly(editor, not is_editable)
+            if editor and hasattr(delegate, 'updateBackground'):
+                delegate.updateBackground(editor, index)
 
-                # 更新背景色
-                if hasattr(delegate, 'updateBackground'):
-                    delegate.updateBackground(editor, index)
-
-    def check_editable(self, column_index, row_index):
-        """检查单元格是否可编辑的通用方法"""
+    def check_editable(self, index: QModelIndex):
         if self.table_properties.get('horizontal'):
-            prop_index = column_index
+            prop_index = index.column()
         else:
-            prop_index = row_index
+            prop_index = index.row()
 
-        column_info = self.columns[prop_index]
-        editable = column_info.get('editable', False)
+        editable = self.columns[prop_index].get('editable', False)
 
         if not isinstance(editable, dict):
             return bool(editable)
 
-        print(f'column_index: {column_index}, row_index: {row_index}, editable: {editable}')
         for dep_column, allowed_values in editable.items():
             # 查找依赖列的索引
             dep_idx = self._find_column_index(dep_column)
             if dep_idx is None:
-                print(f'dep_column: {dep_column} not found')
                 return False
 
             if self.table_properties.get('horizontal'):
-                dep_value = self.model.data(self.model.index(row_index, dep_idx))
+                dep_value = self.model.data(self.model.index(index.row(), dep_idx))
             else:
-                dep_value = self.model.data(self.model.index(dep_idx, column_index))
+                dep_value = self.model.data(self.model.index(dep_idx, index.column()))
 
-            print(f'column_index: {column_index}, row_index: {row_index}, \
-                  dep_value: {dep_value}, allowed_values: {allowed_values}')
             if allowed_values and dep_value not in allowed_values:
                 return False
 

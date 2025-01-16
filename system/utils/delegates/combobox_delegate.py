@@ -24,24 +24,22 @@ class ComboBoxDelegate(QStyledItemDelegate):
 
         # 设置是否可编辑
         view = self.parent()
-        is_editable = view.check_editable(index.column(), index.row())
-        combobox.setEnabled(is_editable)
+        combobox.setEnabled(view.check_editable(index))
 
         def on_combo_clicked():
             view.selectRow(index.row())
 
         combobox.showPopup = lambda: (QComboBox.showPopup(combobox), on_combo_clicked())
 
-        if is_editable:
-            def on_value_changed():
-                index.model().setData(
-                    index,
-                    combobox.currentData(),
-                    Qt.DisplayRole
-                )
-                view.update_one_line_editable_states(index.row(), index.column())
+        def on_value_changed():
+            index.model().setData(
+                index,
+                combobox.currentData(),
+                Qt.DisplayRole
+            )
+            view.update_one_line_editable_states(index.row(), index.column())
 
-            combobox.currentIndexChanged.connect(on_value_changed)
+        combobox.currentIndexChanged.connect(on_value_changed)
 
         # 修改大小策略和样式
         combobox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
