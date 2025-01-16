@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QHeaderView, QSizePolicy, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
-    QPlainTextEdit, QToolButton, QSplitter, QTableView)
+    QPlainTextEdit, QToolButton, QSplitter, QTableView, QAbstractButton)
 from PySide6.QtGui import QIcon, QStandardItemModel, QStandardItem, QFontMetrics, QFont
 from PySide6.QtCore import Qt, QSize, Slot, QModelIndex
 
@@ -219,7 +219,7 @@ class BaseTable(QTableView):
                     border: none;
                     border-right: 1px solid #E0E0E0;
                     border-bottom: 1px solid #E0E0E0;
-                    margin-bottom: 0px;            
+                    margin-bottom: 0px;
                 }
 
                 QTableCornerButton::section {
@@ -322,7 +322,6 @@ class BaseTable(QTableView):
                 h_header.setVisible(True)
                 h_header.setDefaultAlignment(Qt.AlignCenter)
                 h_header.setHighlightSections(False)
-                h_header.setMinimumWidth(100)
                 h_header.setFixedHeight(24)     # 设置水平表头高度，corner button会跟随这个高度
             else:
                 h_header.setVisible(False)
@@ -332,7 +331,20 @@ class BaseTable(QTableView):
             v_header.setMinimumWidth(60)
 
         # 修改corner button的设置
-        self.setCornerButtonEnabled(False)
+        self.setCornerButtonEnabled(True)
+
+        # 获取corner button并设置
+        corner_button = self.findChild(QAbstractButton)
+        if corner_button:
+            font = QFont()
+            font.setBold(True)
+            label = QLabel(self.vertical_header_config.get('index').capitalize())
+            label.setFont(font)
+            label.setAlignment(Qt.AlignCenter)
+            label.setContentsMargins(2, 2, 2, 2)
+            lay = QVBoxLayout(corner_button)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.addWidget(label)
 
         # 设置表格属性
         self.setShowGrid(True)
@@ -440,6 +452,13 @@ class BaseTable(QTableView):
             row = self.model.columnCount()
             self.model.insertColumn(row)
             self.model.setHorizontalHeaderItem(row, QStandardItem(target_row))
+            # self.horizontalHeader().setSectionResizeMode(row, QHeaderView.Fixed)
+            # self.setColumnWidth(row, 150)
+            # 计算合适的列宽度
+            total_width = self.width()
+            v_header_width = self.verticalHeader().width()
+            column_width = (total_width - v_header_width - 2) // 8
+            self.setColumnWidth(row, column_width)
             return row
 
     def create_dev_op_thread(self):

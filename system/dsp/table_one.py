@@ -20,11 +20,11 @@ class TableOne(BaseFrame):
         {'index': 'prop_9'},
         {'index': 'Operation', 'type': 'btn', 'width': 200}
     ]
-    LANE_COUNT = 4
+    LANE_COUNT = 8
 
     def __init__(self, side, parent):
         self.side = side
-        super().__init__(self.side, 'TableOne', {'strech': True, 'horizontal': True})
+        super().__init__(self.side, 'TableOne', {'strech': True, 'horizontal': False})
         self.setParent(parent)
         self.load_data()
 
