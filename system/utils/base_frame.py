@@ -183,40 +183,85 @@ class BaseTable(QTableView):
         self.vertical_header_config = next((col for col in columns if col.get('type') == 'vertical header'), None)
         # 移除垂直表头配置后的列定义
         self.columns = [col for col in columns if col != self.vertical_header_config]
-        self.model: BaseTableModel = BaseTableModel(self.columns, table_properties.get('horizontal'))
-        self._init_table(table_properties)
-        self._apply_styles()
+        # 修改初始化顺序：先设置model和基本属性，再设置delegates
+        self.table_properties = table_properties  # 存储table_properties以供后续使用
+        self.model = BaseTableModel(self.columns, table_properties.get('horizontal'))
+        self.setModel(self.model)
+        self._setup_table_properties(table_properties)
+        self._apply_styles(table_properties.get('horizontal'))
+        self._setup_delegates(table_properties.get('horizontal'))
+        self._setup_selection_handling()
 
-    def _apply_styles(self):
+        # 在水平模式下才调整列宽
+        if table_properties.get('horizontal'):
+            self._adjust_columns()
+
+    def _apply_styles(self, horizontal: bool):
         # 设置表格整体样式
-        self.setStyleSheet("""
-            QTableView {
-                background-color: #FFFFFF;
-                border: 1px solid #E0E0E0;
-                border-radius: 4px;
-            }
+        if horizontal:
+            self.setStyleSheet("""
+                QTableView {
+                    background-color: #FFFFFF;
+                    border: 1px solid #E0E0E0;
+                    border-radius: 4px;
+                }
 
-            QTableView::item:selected {
-                background-color: #E8F0FE;
-            }
+                QTableView::item:selected {
+                    background-color: #E8F0FE;
+                }
 
-            QHeaderView {
-                background-color: #FFFFFF;
-            }
+                QHeaderView {
+                    background-color: #FFFFFF;
+                }
 
-            QHeaderView::section:vertical {
-                background-color: #FFFFFF;
-                border: none;
-                border-right: 1px solid #E0E0E0;
-                border-bottom: 1px solid #E0E0E0;
-                margin-bottom: 0px;
-            }
+                QHeaderView::section:vertical {
+                    background-color: #FFFFFF;
+                    border: none;
+                    border-right: 1px solid #E0E0E0;
+                    border-bottom: 1px solid #E0E0E0;
+                    margin-bottom: 0px;            
+                }
 
-            QTableCornerButton::section {
-                border-bottom: 1px solid #E0E0E0;
-                margin-bottom: 0px;
-            }
-        """)
+                QTableCornerButton::section {
+                    border-bottom: 1px solid #E0E0E0;
+                    margin-bottom: -0.5px;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QTableView {
+                    background-color: #FFFFFF;
+                    border: 1px solid #E0E0E0;
+                    border-radius: 4px;
+                }
+
+                QTableView::item:selected {
+                    background-color: #E8F0FE;
+                }
+
+                QHeaderView {
+                    background-color: #FFFFFF;
+                }
+
+                QHeaderView::section:horizontal {
+                    background-color: #FFFFFF;
+                    border: none;
+                    border-right: 1px solid #E0E0E0;
+                    border-bottom: 1px solid #E0E0E0;
+                    margin-bottom: 0px;
+                }
+
+                QHeaderView::section:vertical:first {
+                    margin-top: 1px;
+                }
+
+                QTableCornerButton::section {
+                    border-right: 1px solid #E0E0E0;
+                    margin-right: 0px;
+                    border-bottom: 1px solid #E0E0E0;
+                    margin-bottom: 0px;
+                }
+            """)
 
     def _adjust_columns(self):
         """调整表格列宽"""
@@ -247,17 +292,6 @@ class BaseTable(QTableView):
             # 设置列宽（仅对Fixed模式的列）
             self.setColumnWidth(column, max(width, minimum_width))
 
-    def _init_table(self, table_properties: dict):
-        self.setModel(self.model)
-        self.table_properties = table_properties  # 存储table_properties以供后续使用
-        self._setup_table_properties(table_properties)
-        self._setup_delegates(table_properties.get('horizontal'))
-        self._setup_selection_handling()
-
-        # 调整列宽
-        if table_properties.get('horizontal'):
-            self._adjust_columns()
-
     def _setup_table_properties(self, table_properties: dict):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         if table_properties.get('horizontal'):
@@ -265,32 +299,40 @@ class BaseTable(QTableView):
         else:
             self.setVerticalScrollMode(QTableView.ScrollPerPixel)
 
-        # 根据配置显示或隐藏垂直表头
+        # 设置表头属性
         v_header = self.verticalHeader()
-        if self.vertical_header_config or not table_properties.get('horizontal'):
-            v_header.setVisible(True)
+        h_header = self.horizontalHeader()
+
+        v_header.setDefaultSectionSize(40)
+        v_header.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        if table_properties.get('horizontal'):
+            if self.vertical_header_config:
+                v_header.setVisible(True)
+                v_header.setDefaultAlignment(Qt.AlignCenter)
+                v_header.setHighlightSections(False)
+                v_header.setMinimumWidth(60)
+            else:
+                v_header.setVisible(False)
+
+            h_header.setDefaultAlignment(Qt.AlignCenter)
+            h_header.setHighlightSections(False)
+            h_header.setMinimumWidth(100)
+        else:
+            if self.vertical_header_config:
+                h_header.setVisible(True)
+                h_header.setDefaultAlignment(Qt.AlignCenter)
+                h_header.setHighlightSections(False)
+                h_header.setMinimumWidth(100)
+                h_header.setFixedHeight(24)     # 设置水平表头高度，corner button会跟随这个高度
+            else:
+                h_header.setVisible(False)
+
             v_header.setDefaultAlignment(Qt.AlignCenter)
             v_header.setHighlightSections(False)
-            v_header.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
-            v_header.setDefaultSectionSize(40)
             v_header.setMinimumWidth(60)
-        else:
-            v_header.setVisible(False)
-            v_header.setDefaultSectionSize(40)
 
-        # 设置表头属性
-        header = self.horizontalHeader()
-        # header.setStretchLastSection(True)
-        header.setDefaultAlignment(Qt.AlignCenter)
-        header.setHighlightSections(False)
-        header.setMinimumWidth(100)
-
-        # 添加corner button的设置
+        # 修改corner button的设置
         self.setCornerButtonEnabled(False)
-        # corner_button = QLabel(self.vertical_header_config.get("index", ""))
-        # corner_button.setAlignment(Qt.AlignCenter)
-        # self.setCornerButtonEnabled(True)
-        # self.setCornerWidget(corner_button)
 
         # 设置表格属性
         self.setShowGrid(True)

@@ -24,7 +24,7 @@ class TableTwo(BaseFrame):
         {'index': 'Operation', 'type': 'btn', 'width': 100, 'buttons': ['get']}
     ]
 
-    LANE_COUNT = 8
+    LANE_COUNT = 4
 
     def __init__(self, side, parent):
         self.side = side
