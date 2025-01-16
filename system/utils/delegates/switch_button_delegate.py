@@ -52,7 +52,7 @@ class SwitchButtonDelegate(QStyledItemDelegate):
         if is_editable:
             def on_state_changed(state):
                 index.model().setData(index, state, Qt.DisplayRole)
-                view.update_editable_states(index.row())
+                view.update_one_line_editable_states(index.row(), index.column())
 
             editor.stateChanged.connect(on_state_changed)
 

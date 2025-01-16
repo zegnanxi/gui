@@ -32,8 +32,9 @@ class BaseFrame(QWidget):
     def __init__(self, side: str, model: str, table_properties: dict = {}):
         # 设置默认值
         default_properties = {
-            'strech': False,          # 默认不拉伸
-            'row_select': True,       # 默认允许行选择
+            'horizontal': True,         # 默认水平布局
+            'strech': False,            # 默认不拉伸
+            'row_select': True,         # 默认允许行选择
             'spliter_size': [200, 100]  # 默认分割器尺寸
         }
         # 使用默认值更新传入的属性
@@ -94,7 +95,10 @@ class BaseFrame(QWidget):
             self.fetcher_thread.wait()
 
         # 清除表格数据
-        self.tableWidget.model.setRowCount(0)
+        if self.table_properties.get('horizontal'):
+            self.tableWidget.model.setRowCount(0)
+        else:
+            self.tableWidget.model.setColumnCount(0)
         # 清除控制台日志
         self.consoleWidget.clearConsoleLog()
 
@@ -144,26 +148,9 @@ class BaseFrame(QWidget):
                 self.height() // 2 - self.spinner.height() // 2
             )
 
-    def setup_delegates(self):
-        """设置各列的delegate"""
-        for col, delegate_info in self.delegates_map.items():
-            delegate_type = delegate_info.get('type')
-            prop = delegate_info.get('prop', {})
-
-            if delegate_type == 'line_edit':
-                self.setItemDelegateForColumn(col, LineEditDelegate(self, prop))
-            elif delegate_type == 'switch':
-                self.setItemDelegateForColumn(col, SwitchButtonDelegate(self))
-            elif delegate_type == 'operation':
-                self.setItemDelegateForColumn(col, OperationDelegate(self))
-            elif delegate_type == 'checkbox':
-                self.setItemDelegateForColumn(col, CheckboxDelegate(self))
-            elif delegate_type == 'combobox':
-                self.setItemDelegateForColumn(col, ComboBoxDelegate(self, prop))
-
 
 class BaseTableModel(QStandardItemModel):
-    def __init__(self, columns):
+    def __init__(self, columns, horizontal: bool):
         super().__init__()
         bold_font = QFont()
         bold_font.setBold(True)
@@ -172,7 +159,10 @@ class BaseTableModel(QStandardItemModel):
         for col, item in enumerate(columns):
             header_item = QStandardItem(item['index'])
             header_item.setFont(bold_font)
-            self.setHorizontalHeaderItem(col, header_item)
+            if horizontal:
+                self.setHorizontalHeaderItem(col, header_item)
+            else:
+                self.setVerticalHeaderItem(col, header_item)
 
     def flags(self, index):
         if not index.isValid():
@@ -193,7 +183,7 @@ class BaseTable(QTableView):
         self.vertical_header_config = next((col for col in columns if col.get('type') == 'vertical header'), None)
         # 移除垂直表头配置后的列定义
         self.columns = [col for col in columns if col != self.vertical_header_config]
-        self.model = BaseTableModel(self.columns)
+        self.model: BaseTableModel = BaseTableModel(self.columns, table_properties.get('horizontal'))
         self._init_table(table_properties)
         self._apply_styles()
 
@@ -265,15 +255,19 @@ class BaseTable(QTableView):
         self._setup_selection_handling()
 
         # 调整列宽
-        self._adjust_columns()
+        if table_properties.get('horizontal'):
+            self._adjust_columns()
 
     def _setup_table_properties(self, table_properties: dict):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setHorizontalScrollMode(QTableView.ScrollPerPixel)
+        if table_properties.get('horizontal'):
+            self.setHorizontalScrollMode(QTableView.ScrollPerPixel)
+        else:
+            self.setVerticalScrollMode(QTableView.ScrollPerPixel)
 
         # 根据配置显示或隐藏垂直表头
         v_header = self.verticalHeader()
-        if self.vertical_header_config:
+        if self.vertical_header_config or not table_properties.get('horizontal'):
             v_header.setVisible(True)
             v_header.setDefaultAlignment(Qt.AlignCenter)
             v_header.setHighlightSections(False)
@@ -307,7 +301,10 @@ class BaseTable(QTableView):
         # 设置选择行为
         if table_properties.get('row_select'):
             self.setSelectionMode(QTableView.SingleSelection)
-            self.setSelectionBehavior(QTableView.SelectRows)
+            if table_properties.get('horizontal'):
+                self.setSelectionBehavior(QTableView.SelectRows)
+            else:
+                self.setSelectionBehavior(QTableView.SelectColumns)
         else:
             self.setSelectionMode(QTableView.NoSelection)  # 禁用选择功能
 
@@ -316,44 +313,57 @@ class BaseTable(QTableView):
         self.setFocusPolicy(Qt.NoFocus)
 
     def _setup_delegates(self):
-        # 为每列设置适当的delegate
-        self.setItemDelegateForColumn(len(self.columns) - 1, OperationDelegate(self, prop=self.columns[-1]))
+        # 根据表格方向选择代理设置函数
+        set_delegate = (self.setItemDelegateForColumn
+                        if self.table_properties.get('horizontal')
+                        else self.setItemDelegateForRow)
 
-        for col, column_info in enumerate(self.columns[:-1]):
+        # 设置最后一列/行的操作代理
+        set_delegate(len(self.columns) - 1, OperationDelegate(self, prop=self.columns[-1]))
+
+        # 设置其他列/行的代理
+        for idx, column_info in enumerate(self.columns[:-1]):
             column_type = column_info.get('type', 'int')
-            if column_type == 'boolean':
-                self.setItemDelegateForColumn(col, SwitchButtonDelegate(self, prop=column_info))
-            elif column_type == 'checkbox':
-                self.setItemDelegateForColumn(col, CheckboxDelegate(self, prop=column_info))
-            elif column_type == 'select':
-                self.setItemDelegateForColumn(col, ComboBoxDelegate(self, prop=column_info))
-            else:
-                self.setItemDelegateForColumn(col, LineEditDelegate(self, prop=column_info))
+            delegate = {
+                'boolean': lambda: SwitchButtonDelegate(self, prop=column_info),
+                'checkbox': lambda: CheckboxDelegate(self, prop=column_info),
+                'select': lambda: ComboBoxDelegate(self, prop=column_info)
+            }.get(column_type, lambda: LineEditDelegate(self, prop=column_info))()
+
+            set_delegate(idx, delegate)
+
+    def _get_index(self, row: int, col: int):
+        if self.table_properties.get('horizontal'):
+            return self.model.index(row, col)
+        else:
+            return self.model.index(col, row)
+
+    def _get_delegate(self, col: int):
+        if self.table_properties.get('horizontal'):
+            return self.itemDelegateForColumn(col)
+        else:
+            return self.itemDelegateForRow(col)
 
     def _update_row_data(self, row: int, lane: int, row_data: dict):
         for col, column_info in enumerate(self.columns[0:-1]):
-            # 获取值的键名
-            value_key = column_info['index'] if isinstance(column_info, dict) else column_info
-            value = row_data.get(value_key)
+            value = row_data.get(column_info['index'])
             if value is not None:
-                # 设置数据值
-                # self.model.setData(self.model.index(row, col), f'{
-                #                    value:.5g}' if isinstance(value, float) else str(value))
-                self.model.setData(self.model.index(row, col), value)
-                self.model.setData(self.model.index(row, col), Qt.AlignCenter, Qt.TextAlignmentRole)
+                index = self._get_index(row, col)
+                data_delegate = self._get_delegate(col)
 
-                data_delegate = self.itemDelegateForColumn(col)
-                editor = self.indexWidget(self.model.index(row, col))
+                self.model.setData(index, value)
+                self.model.setData(index, Qt.AlignCenter, Qt.TextAlignmentRole)
+                editor = self.indexWidget(index)
                 if editor is None:
-                    editor = data_delegate.createEditor(self.viewport(), None, self.model.index(row, col))
-                    self.setIndexWidget(self.model.index(row, col), editor)
-                data_delegate.setEditorData(editor, self.model.index(row, col))
+                    editor = data_delegate.createEditor(self.viewport(), None, index)
+                    self.setIndexWidget(index, editor)
+                data_delegate.setEditorData(editor, index)
 
         last_column = len(self.columns) - 1
-        last_index = self.model.index(row, last_column)
+        last_index = self._get_index(row, last_column)
         editor = self.indexWidget(last_index)
         if editor is None:
-            operation_delegate = self.itemDelegateForColumn(last_column)
+            operation_delegate = self._get_delegate(last_column)
             if isinstance(operation_delegate, OperationDelegate):
                 editor = operation_delegate.createEditor(self.viewport(), None, last_index)
                 self.setIndexWidget(last_index, editor)
@@ -367,23 +377,30 @@ class BaseTable(QTableView):
         row = self._find_or_create_row(lane)
         self._update_row_data(row, lane, row_data)
 
-        # 更新所有列的可编辑状态
-        self.update_editable_states(row)
-
     def _find_or_create_row(self, lane: int) -> int:
         if self.vertical_header_config:
             target_row = f'{self.vertical_header_config["index"]}{lane}'
         else:
             target_row = str(lane)
 
-        for row in range(self.model.rowCount()):
-            if self.model.verticalHeaderItem(row).text() == target_row:
-                return row
+        if self.table_properties.get('horizontal'):
+            for row in range(self.model.rowCount()):
+                if self.model.verticalHeaderItem(row).text() == target_row:
+                    return row
 
-        row = self.model.rowCount()
-        self.model.insertRow(row)
-        self.model.setVerticalHeaderItem(row, QStandardItem(target_row))
-        return row
+            row = self.model.rowCount()
+            self.model.insertRow(row)
+            self.model.setVerticalHeaderItem(row, QStandardItem(target_row))
+            return row
+        else:
+            for row in range(self.model.columnCount()):
+                if self.model.horizontalHeaderItem(row).text() == target_row:
+                    return row
+
+            row = self.model.columnCount()
+            self.model.insertColumn(row)
+            self.model.setHorizontalHeaderItem(row, QStandardItem(target_row))
+            return row
 
     def create_dev_op_thread(self):
         raise NotImplementedError("Subclasses must implement create_dev_op_thread()")
@@ -394,71 +411,82 @@ class BaseTable(QTableView):
             # 更新编辑器背景色
             for row in range(self.model.rowCount()):
                 for col in range(self.model.columnCount()):
-                    index = self.model.index(row, col)
-                    editor = self.indexWidget(index)
-                    delegate = self.itemDelegateForColumn(col)
+                    if self.table_properties.get('horizontal'):
+                        delegate = self.itemDelegateForColumn(col)
+                    else:
+                        delegate = self.itemDelegateForRow(row)
                     if hasattr(delegate, 'updateBackground'):
+                        index = self.model.index(row, col)
+                        editor = self.indexWidget(index)
                         delegate.updateBackground(editor, index)
 
         self.selectionModel().selectionChanged.connect(on_selection_changed)
 
-    def update_editable_states(self, row):
-        """更新行中所有列的可编辑状态"""
-        for col, column_info in enumerate(self.columns[:-1]):
-            if isinstance(column_info.get('editable'), dict):
-                index = self.model.index(row, col)
-                editor = self.indexWidget(index)
-                if editor:
-                    delegate = self.itemDelegateForColumn(col)
-                    is_editable = self.check_editable(col, row)
+    def update_one_line_editable_states(self, row, col):
+        for prop_index, column_info in enumerate(self.columns[:-1]):
+            if not isinstance(column_info.get('editable'), dict):
+                continue
 
-                    # 使用新的方法设置只读状态
-                    if hasattr(delegate, 'setEditorReadOnly'):
-                        delegate.setEditorReadOnly(editor, not is_editable)
+            if self.table_properties.get('horizontal'):
+                index = self.model.index(row, prop_index)
+                delegate = self.itemDelegateForColumn(prop_index)
+                print(f'1row: {row}, col: {col}, prop_index: {prop_index}')
+                is_editable = self.check_editable(prop_index, row)
+            else:
+                index = self.model.index(prop_index, col)
+                delegate = self.itemDelegateForRow(prop_index)
+                print(f'2row: {row}, col: {col}, prop_index: {prop_index}')
+                is_editable = self.check_editable(col, prop_index)
 
-                    # 更新背景色
-                    if hasattr(delegate, 'updateBackground'):
-                        delegate.updateBackground(editor, index)
+            editor = self.indexWidget(index)
+            if editor:
+                # is_editable = self.check_editable(col, row)
+
+                # 使用新的方法设置只读状态
+                if hasattr(delegate, 'setEditorReadOnly'):
+                    delegate.setEditorReadOnly(editor, not is_editable)
+
+                # 更新背景色
+                if hasattr(delegate, 'updateBackground'):
+                    delegate.updateBackground(editor, index)
 
     def check_editable(self, column_index, row_index):
         """检查单元格是否可编辑的通用方法"""
-        column_info = self.columns[column_index]
+        if self.table_properties.get('horizontal'):
+            prop_index = column_index
+        else:
+            prop_index = row_index
+
+        column_info = self.columns[prop_index]
         editable = column_info.get('editable', False)
 
-        if isinstance(editable, dict):
-            # 遍历所有的条件
-            for dep_column, allowed_values in editable.items():
-                # 查找依赖列的索引
-                dep_col_idx = self._find_column_index(dep_column)
-                if dep_col_idx is None:
-                    continue
+        if not isinstance(editable, dict):
+            return bool(editable)
 
-                # 获取依赖列的值
-                dep_value = self.model.data(self.model.index(row_index, dep_col_idx))
+        print(f'column_index: {column_index}, row_index: {row_index}, editable: {editable}')
+        for dep_column, allowed_values in editable.items():
+            # 查找依赖列的索引
+            dep_idx = self._find_column_index(dep_column)
+            if dep_idx is None:
+                print(f'dep_column: {dep_column} not found')
+                return False
 
-                # 根据allowed_values中第一个值的类型来决定如何转换dep_value
-                if allowed_values:
-                    target_type = type(allowed_values[0])
-                    try:
-                        if target_type == int:
-                            dep_value = int(dep_value)
-                        elif target_type == float:
-                            dep_value = float(dep_value)
-                        elif target_type == str:
-                            dep_value = str(dep_value)
+            if self.table_properties.get('horizontal'):
+                dep_value = self.model.data(self.model.index(row_index, dep_idx))
+            else:
+                dep_value = self.model.data(self.model.index(dep_idx, column_index))
 
-                        if dep_value not in allowed_values:
-                            return False
-                    except (ValueError, TypeError):
-                        return False
+            print(f'column_index: {column_index}, row_index: {row_index}, \
+                  dep_value: {dep_value}, allowed_values: {allowed_values}')
+            if allowed_values and dep_value not in allowed_values:
+                return False
 
-            return True
-        return bool(editable)
+        return True
 
     def _find_column_index(self, column_name):
         """查找列名对应的索引"""
         for idx, col_info in enumerate(self.columns):
-            if isinstance(col_info, dict) and col_info.get('index') == column_name:
+            if col_info.get('index') == column_name:
                 return idx
         return None
 

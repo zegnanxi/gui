@@ -39,7 +39,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
                     combobox.currentData(),
                     Qt.DisplayRole
                 )
-                view.update_editable_states(index.row())
+                view.update_one_line_editable_states(index.row(), index.column())
 
             combobox.currentIndexChanged.connect(on_value_changed)
 

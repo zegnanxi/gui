@@ -9,7 +9,7 @@ class TableTwo(BaseFrame):
         {'index': 'prop_1', 'type': 'checkbox', 'editable': True},
         {'index': 'prop_2ls', 'editable': True, 'side': 'Line Side'},
         {'index': 'prop_2hs', 'editable': True, 'side': 'Host Side'},
-        {'index': 'prop_6666666666666666666666663', 'type': 'date'},
+        {'index': 'prop_6666666666666666666666663', 'type': 'str'},
         {'index': 'prop_4', 'type': 'checkbox'},
         {'index': 'prop_5', 'side': 'Line Side'},
         {'index': 'prop_6', 'type': 'str', 'editable': True},
@@ -20,7 +20,7 @@ class TableTwo(BaseFrame):
             'checked': 'ON', 'unChecked': 'OFF'}},
         {'index': 'prop_10', 'type': 'boolean', 'width': 100, 'editable': True},
         {'index': 'prop_11'},
-        {'index': 'prop_12'},
+        {'index': 'prop_12', 'type': 'float'},
         {'index': 'Operation', 'type': 'btn', 'width': 100, 'buttons': ['get']}
     ]
 
@@ -29,7 +29,7 @@ class TableTwo(BaseFrame):
     def __init__(self, side, parent):
         self.side = side
         self.COLUMNS = self._process_columns(self.COLUMNS_ALL, self.side)
-        super().__init__(self.side, 'Driver')
+        super().__init__(self.side, 'Driver', {'horizontal': False})
         self.setParent(parent)
         self.load_data()
 
