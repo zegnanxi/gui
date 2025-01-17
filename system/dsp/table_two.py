@@ -24,12 +24,12 @@ class TableTwo(BaseFrame):
         {'index': 'Operation', 'type': 'btn', 'width': 100, 'buttons': ['get']}
     ]
 
-    LANE_COUNT = 4
+    LANE_COUNT = 8
 
     def __init__(self, side, parent):
         self.side = side
         self.COLUMNS = self._process_columns(self.COLUMNS_ALL, self.side)
-        super().__init__(self.side, 'Driver', {'horizontal': False})
+        super().__init__(self.side, 'Driver', {'horizontal': False, 'row_count': 8})
         self.setParent(parent)
         self.load_data()
 

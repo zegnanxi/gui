@@ -35,6 +35,7 @@ class BaseFrame(QWidget):
             'horizontal': True,         # 默认水平布局
             'strech': False,            # 默认不拉伸
             'row_select': True,         # 默认允许行选择
+            'row_count': -1,            # 行数，如果小于0，表示一行一行添加
             'spliter_size': [200, 100]  # 默认分割器尺寸
         }
         # 使用默认值更新传入的属性
@@ -94,11 +95,11 @@ class BaseFrame(QWidget):
             self.fetcher_thread.quit()
             self.fetcher_thread.wait()
 
-        # 清除表格数据
-        if self.table_properties.get('horizontal'):
-            self.tableWidget.model.setRowCount(0)
-        else:
-            self.tableWidget.model.setColumnCount(0)
+        # # 清除表格数据
+        # if self.table_properties.get('horizontal'):
+        #     self.tableWidget.model.setRowCount(0)
+        # else:
+        #     self.tableWidget.model.setColumnCount(0)
         # 清除控制台日志
         self.consoleWidget.clearConsoleLog()
 
@@ -195,6 +196,9 @@ class BaseTable(QTableView):
         # 在水平模式下才调整列宽
         if table_properties.get('horizontal'):
             self._adjust_columns()
+
+        # # 预创建行或列
+        self._init_rows(table_properties.get('row_count'))
 
     def _apply_styles(self, horizontal: bool):
         # 设置表格整体样式
@@ -331,20 +335,22 @@ class BaseTable(QTableView):
             v_header.setMinimumWidth(60)
 
         # 修改corner button的设置
-        self.setCornerButtonEnabled(True)
+        self.setCornerButtonEnabled(False)
 
-        # 获取corner button并设置
-        corner_button = self.findChild(QAbstractButton)
-        if corner_button:
-            font = QFont()
-            font.setBold(True)
-            label = QLabel(self.vertical_header_config.get('index').capitalize())
-            label.setFont(font)
-            label.setAlignment(Qt.AlignCenter)
-            label.setContentsMargins(2, 2, 2, 2)
-            lay = QVBoxLayout(corner_button)
-            lay.setContentsMargins(0, 0, 0, 0)
-            lay.addWidget(label)
+        if self.vertical_header_config:
+            # 获取corner button并设置
+            corner_button = self.findChild(QAbstractButton)
+            if corner_button:
+                self.setCornerButtonEnabled(True)
+                font = QFont()
+                font.setBold(True)
+                label = QLabel(self.vertical_header_config.get('index').capitalize())
+                label.setFont(font)
+                label.setAlignment(Qt.AlignCenter)
+                label.setContentsMargins(2, 2, 2, 2)
+                lay = QVBoxLayout(corner_button)
+                lay.setContentsMargins(0, 0, 0, 0)
+                lay.addWidget(label)
 
         # 设置表格属性
         self.setShowGrid(True)
@@ -452,13 +458,6 @@ class BaseTable(QTableView):
             row = self.model.columnCount()
             self.model.insertColumn(row)
             self.model.setHorizontalHeaderItem(row, QStandardItem(target_row))
-            # self.horizontalHeader().setSectionResizeMode(row, QHeaderView.Fixed)
-            # self.setColumnWidth(row, 150)
-            # 计算合适的列宽度
-            total_width = self.width()
-            v_header_width = self.verticalHeader().width()
-            column_width = (total_width - v_header_width - 2) // 8
-            self.setColumnWidth(row, column_width)
             return row
 
     def create_dev_op_thread(self):
@@ -533,6 +532,29 @@ class BaseTable(QTableView):
             if col_info.get('index') == column_name:
                 return idx
         return None
+
+    def _init_rows(self, row_count: int):
+        """初始化表格的行或列"""
+        if row_count <= 0:
+            return
+
+        horizontal = self.table_properties.get('horizontal')
+        if horizontal:
+            self.model.setRowCount(row_count)
+            set_hdr_item_func = self.model.setVerticalHeaderItem
+        else:
+            self.model.setColumnCount(row_count)
+            set_hdr_item_func = self.model.setHorizontalHeaderItem
+
+        hdr_prefix = self.vertical_header_config.get('index') if self.vertical_header_config else ''
+        for row in range(row_count):
+            set_hdr_item_func(row, QStandardItem(f'{hdr_prefix}{row}'))
+            if not horizontal:
+                if row_count >= 8:
+                    self.horizontalHeader().setSectionResizeMode(row, QHeaderView.Stretch)
+                else:
+                    self.horizontalHeader().setSectionResizeMode(row, QHeaderView.Fixed)
+                    self.setColumnWidth(row, 200)
 
 
 class ConsoleWidget(QWidget):
