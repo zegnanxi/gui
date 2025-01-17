@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (QStyledItemDelegate, QWidget, QHBoxLayout, QTableView,
                                QToolButton, QSizePolicy)
 from PySide6.QtGui import QStandardItemModel
-from PySide6.QtCore import QModelIndex
+from PySide6.QtCore import QModelIndex, Qt
 
 
 class OperationDelegate(QStyledItemDelegate):
@@ -109,7 +109,7 @@ class OperationDelegate(QStyledItemDelegate):
                     editable = view.check_editable(item_index)
 
                 if editable is True:
-                    row_data[header.get('index')] = model.data(item_index)
+                    row_data[header.get('index')] = model.data(item_index, Qt.UserRole)
         else:
             view.selectColumn(index.column())
             for row, header in enumerate(view.columns[:-1]):
@@ -119,7 +119,7 @@ class OperationDelegate(QStyledItemDelegate):
                     editable = view.check_editable(item_index)
 
                 if editable is True:
-                    row_data[header.get('index')] = model.data(item_index)
+                    row_data[header.get('index')] = model.data(item_index, Qt.UserRole)
 
         # 获取lane值
         lane = self._get_lane_from_index(index)

@@ -10,6 +10,8 @@ import subprocess
 import os
 import qdarktheme
 from qdarktheme.qtpy.QtWidgets import QApplication
+# 添加资源文件导入
+import resources_rc  # 导入编译后的资源文件
 
 
 class MainWindow(QMainWindow):

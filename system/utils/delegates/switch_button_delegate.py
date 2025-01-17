@@ -43,13 +43,13 @@ class SwitchButtonDelegate(QStyledItemDelegate):
         # 使用主布局来包含innerLayout
         layout.addLayout(innerLayout)
 
-        editor.state = index.model().data(index, Qt.DisplayRole)
+        editor.state = index.model().data(index, Qt.UserRole)
 
         view = self.parent()
         editor.setEnabled(view.check_editable(index))
 
         def on_state_changed(state):
-            index.model().setData(index, state, Qt.DisplayRole)
+            index.model().setData(index, state, Qt.UserRole)
             view.update_one_line_editable_states(index.row(), index.column())
 
         editor.stateChanged.connect(on_state_changed)
@@ -59,7 +59,7 @@ class SwitchButtonDelegate(QStyledItemDelegate):
     def setEditorData(self, editor, index):
         switch_button = editor.findChild(SwitchButton)
         if switch_button:
-            switch_button.state = index.model().data(index, Qt.DisplayRole)
+            switch_button.state = index.model().data(index, Qt.UserRole)
 
     def setEditorReadOnly(self, editor, readonly):
         """设置编辑器的只读状态"""

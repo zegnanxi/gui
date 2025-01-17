@@ -35,7 +35,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
             index.model().setData(
                 index,
                 combobox.currentData(),
-                Qt.DisplayRole
+                Qt.UserRole
             )
             view.update_one_line_editable_states(index.row(), index.column())
 
@@ -49,7 +49,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
         return widget
 
     def setEditorData(self, editor, index):
-        value = index.model().data(index, Qt.DisplayRole)
+        value = index.model().data(index, Qt.UserRole)
         combobox = editor.findChild(QComboBox)
         if combobox:
             try:

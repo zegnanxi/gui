@@ -25,34 +25,28 @@ class CheckboxDelegate(QStyledItemDelegate):
         #     }
         # """)
 
-        # 其余代码保持不变
-        value = index.model().data(index, Qt.DisplayRole)
-        try:
-            int_value = int(float(value)) if value else 0
-            checkbox.setChecked(int_value != 0)
-        except (ValueError, TypeError):
-            checkbox.setChecked(False)
+        # 修改数据处理逻辑
+        value = index.model().data(index, Qt.UserRole)
+        checkbox.setChecked(self._convert_to_bool(value))
 
         view = self.parent()
         checkbox.setEnabled(view.check_editable(index))
 
         # if view.check_editable(index):
         checkbox.stateChanged.connect(
-            lambda state: index.model().setData(index, 1 if state else 0, Qt.DisplayRole)
+            lambda state: index.model().setData(index, state, Qt.UserRole)
         )
 
         layout.addWidget(checkbox)
         return widget
 
     def setEditorData(self, editor, index):
-        value = index.model().data(index, Qt.DisplayRole)
+        value = index.model().data(index, Qt.UserRole)
         checkbox = editor.findChild(QCheckBox)
         if checkbox:
-            try:
-                int_value = int(float(value)) if value else 0
-                checkbox.setChecked(int_value != 0)
-            except (ValueError, TypeError):
-                checkbox.setChecked(False)
+            # 添加调试信息
+            print(f"setEditorData at {index.row()},{index.column()} with value: {value}")
+            checkbox.setChecked(self._convert_to_bool(value))
 
     def setEditorReadOnly(self, editor, readonly):
         """设置编辑器的只读状态"""
@@ -61,5 +55,26 @@ class CheckboxDelegate(QStyledItemDelegate):
             checkbox.setEnabled(not readonly)
 
     def paint(self, painter, option, index):
+        # 只绘制背景，不绘制数据
         style = option.widget.style()
         style.drawPrimitive(QStyle.PE_PanelItemViewItem, option, painter, option.widget)
+
+    def _convert_to_bool(self, value):
+        """统一处理数据转换"""
+        if value is None:
+            return False
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        try:
+            # 处理字符串类型的值
+            if isinstance(value, str):
+                value = value.strip()
+                if value.lower() in ('true', '1'):
+                    return True
+                if value.lower() in ('false', '0'):
+                    return False
+            return bool(int(float(value)))
+        except (ValueError, TypeError):
+            return False

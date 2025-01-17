@@ -10,11 +10,11 @@ class GuiApi:
 
         values = {}
         values['driver_mode'] = random.randint(1, 3)
-        values['prop_1'] = random.randint(0, 1)
+        values['prop_1'] = 'true'  # # random.randint(0, 1)
         values['prop_2ls'] = random.randint(0, 10)
-        values['prop_2hs'] = random.randint(0, 10)
+        values['prop_2hs'] = random.randint(1, 3)
         values['prop_6666666666666666666666663'] = random.randint(8, 15)
-        values['prop_4'] = random.randint(0, 2)
+        values['prop_4'] = 8    # random.randint(0, 2)
         values['prop_5'] = random.randint(0, 10)
         values['prop_6'] = '1,2,3,4,5,6,7,8,9,10'
         values['prop_777777777777abadafddasfadsfadsfadsf'] = random.randint(

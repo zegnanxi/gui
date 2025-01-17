@@ -155,6 +155,7 @@ class BaseTableModel(QStandardItemModel):
         super().__init__()
         bold_font = QFont()
         bold_font.setBold(True)
+        self.columns = columns
 
         # 设置表头标签并应用粗体字体
         for col, item in enumerate(columns):
@@ -165,19 +166,22 @@ class BaseTableModel(QStandardItemModel):
             else:
                 self.setVerticalHeaderItem(col, header_item)
 
-    def flags(self, index):
-        if not index.isValid():
-            return Qt.NoItemFlags
+    # def flags(self, index):
+    #     if not index.isValid():
+    #         return Qt.NoItemFlags
 
-        # 检查列是否可编辑
-        # column_info = self.columns[index.column()]
-        # if isinstance(column_info, dict) and column_info.get('editable', False):
-        #     return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
+    #     # 检查列是否可编辑
+    #     # column_info = self.columns[index.column()]
+    #     # if isinstance(column_info, dict) and column_info.get('editable', False):
+    #     #     return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
 
-        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+    #     return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
 
 class BaseTable(QTableView):
+    # 添加类常量
+    VERTICAL_COLUMN_WIDTH = 150  # 竖直表格默认列宽
+
     def __init__(self, columns, table_properties: dict):
         super().__init__()
         # 检查是否有垂直表头配置
@@ -186,7 +190,8 @@ class BaseTable(QTableView):
         self.columns = [col for col in columns if col != self.vertical_header_config]
         # 修改初始化顺序：先设置model和基本属性，再设置delegates
         self.table_properties = table_properties  # 存储table_properties以供后续使用
-        self.model = BaseTableModel(self.columns, table_properties.get('horizontal'))
+        self.corner_button = None
+        self.model: BaseTableModel = BaseTableModel(self.columns, table_properties.get('horizontal'))
         self.setModel(self.model)
         self._setup_table_properties(table_properties)
         self._apply_styles(table_properties.get('horizontal'))
@@ -314,13 +319,13 @@ class BaseTable(QTableView):
                 v_header.setVisible(True)
                 v_header.setDefaultAlignment(Qt.AlignCenter)
                 v_header.setHighlightSections(False)
-                v_header.setMinimumWidth(60)
+                v_header_width = self.vertical_header_config.get('width', 100)
+                v_header.setMinimumWidth(v_header_width)
             else:
                 v_header.setVisible(False)
 
             h_header.setDefaultAlignment(Qt.AlignCenter)
             h_header.setHighlightSections(False)
-            h_header.setMinimumWidth(100)
         else:
             if self.vertical_header_config:
                 h_header.setVisible(True)
@@ -332,25 +337,14 @@ class BaseTable(QTableView):
 
             v_header.setDefaultAlignment(Qt.AlignCenter)
             v_header.setHighlightSections(False)
-            v_header.setMinimumWidth(60)
-
-        # 修改corner button的设置
-        self.setCornerButtonEnabled(False)
 
         if self.vertical_header_config:
-            # 获取corner button并设置
-            corner_button = self.findChild(QAbstractButton)
-            if corner_button:
-                self.setCornerButtonEnabled(True)
-                font = QFont()
-                font.setBold(True)
-                label = QLabel(self.vertical_header_config.get('index').capitalize())
-                label.setFont(font)
-                label.setAlignment(Qt.AlignCenter)
-                label.setContentsMargins(2, 2, 2, 2)
-                lay = QVBoxLayout(corner_button)
-                lay.setContentsMargins(0, 0, 0, 0)
-                lay.addWidget(label)
+            if self.corner_button is None:
+                self.corner_button = self.findChild(QAbstractButton)
+                if self.corner_button:
+                    self._init_corner_button()
+        else:
+            self.setCornerButtonEnabled(False)
 
         # 设置表格属性
         self.setShowGrid(True)
@@ -409,7 +403,8 @@ class BaseTable(QTableView):
                 index = self._get_index(row, col)
                 data_delegate = self._get_delegate(col)
 
-                self.model.setData(index, value)
+                self.model.setData(index, "", Qt.DisplayRole)
+                self.model.setData(index, value, Qt.UserRole)
                 self.model.setData(index, Qt.AlignCenter, Qt.TextAlignmentRole)
                 editor = self.indexWidget(index)
                 if editor is None:
@@ -458,6 +453,8 @@ class BaseTable(QTableView):
             row = self.model.columnCount()
             self.model.insertColumn(row)
             self.model.setHorizontalHeaderItem(row, QStandardItem(target_row))
+
+            self.setColumnWidth(row, self.VERTICAL_COLUMN_WIDTH)
             return row
 
     def create_dev_op_thread(self):
@@ -517,9 +514,9 @@ class BaseTable(QTableView):
                 return False
 
             if self.table_properties.get('horizontal'):
-                dep_value = self.model.data(self.model.index(index.row(), dep_idx))
+                dep_value = self.model.data(self.model.index(index.row(), dep_idx), Qt.UserRole)
             else:
-                dep_value = self.model.data(self.model.index(dep_idx, index.column()))
+                dep_value = self.model.data(self.model.index(dep_idx, index.column()), Qt.UserRole)
 
             if allowed_values and dep_value not in allowed_values:
                 return False
@@ -554,7 +551,103 @@ class BaseTable(QTableView):
                     self.horizontalHeader().setSectionResizeMode(row, QHeaderView.Stretch)
                 else:
                     self.horizontalHeader().setSectionResizeMode(row, QHeaderView.Fixed)
-                    self.setColumnWidth(row, 200)
+                    self.setColumnWidth(row, self.VERTICAL_COLUMN_WIDTH)
+
+    def _on_corner_button_clicked(self):
+        """处理corner button的点击事件，切换表格的显示模式（水平/竖直）"""
+        # 保存当前数据
+        print(f'_on_corner_button_clicked self.model.rowCount(): {self.model.rowCount()}')
+        current_data = []
+        if self.table_properties.get('horizontal'):
+            # 从水平模式切换到竖直模式
+            for row in range(self.model.rowCount()):
+                row_data = {}
+                for col, column_info in enumerate(self.columns[:-1]):
+                    index = self.model.index(row, col)
+                    row_data[column_info['index']] = self.model.data(index, Qt.UserRole)
+                current_data.append(row_data)
+        else:
+            # 从竖直模式切换到水平模式
+            for col in range(self.model.columnCount()):
+                row_data = {}
+                for row, column_info in enumerate(self.columns[:-1]):
+                    index = self.model.index(row, col)
+                    row_data[column_info['index']] = self.model.data(index, Qt.UserRole)
+                current_data.append(row_data)
+
+        # 2. 切换模式并重建表格
+        self.table_properties['horizontal'] = not self.table_properties.get('horizontal')
+
+        # 清除所有的 indexWidget 和 delegates
+        for row in range(self.model.rowCount()):
+            for col in range(self.model.columnCount()):
+                index = self.model.index(row, col)
+                # 清除 indexWidget
+                widget = self.indexWidget(index)
+                if widget:
+                    self.setIndexWidget(index, None)
+                # 清除 delegates
+                if self.table_properties.get('horizontal'):
+                    self.setItemDelegateForColumn(col, None)
+                else:
+                    self.setItemDelegateForRow(row, None)
+
+        self.model.setRowCount(0)
+        self.model.setColumnCount(0)
+
+        # 重新创建模型
+        self.model = BaseTableModel(self.columns, self.table_properties.get('horizontal'))
+        self.setModel(self.model)
+
+        # 重新设置表格属性和样式
+        self._setup_table_properties(self.table_properties)
+        # 在水平模式下调整列宽
+        if self.table_properties.get('horizontal'):
+            self._adjust_columns()
+        self._apply_styles(self.table_properties.get('horizontal'))
+        self._setup_delegates(self.table_properties.get('horizontal'))
+        self._setup_selection_handling()
+
+        # 恢复数据
+        self._init_rows(len(current_data))
+        for idx, row_data in enumerate(current_data):
+            self.update_row(True, idx, row_data)
+
+    def _init_corner_button(self):
+        """初始化表格角落按钮"""
+        self.setCornerButtonEnabled(True)
+        font = QFont()
+        font.setBold(True)
+
+        # 创建水平布局来容纳图标和文本
+        container = QWidget()
+        container.setAttribute(Qt.WA_TranslucentBackground)  # 设置widget透明
+        hbox = QHBoxLayout(container)
+        hbox.setContentsMargins(2, 2, 2, 2)
+        hbox.setSpacing(0)  # 将间距设置为0
+
+        # 创建图标标签
+        icon_label = QLabel()
+        icon = QIcon(":/icon/image/icon/row_column_switch.png")
+        icon_label.setPixmap(icon.pixmap(QSize(16, 16)))
+        icon_label.setAlignment(Qt.AlignLeft)
+
+        # 创建文本标签
+        text_label = QLabel(self.vertical_header_config.get('index').capitalize())
+        text_label.setFont(font)
+        text_label.setAlignment(Qt.AlignRight)
+
+        # 将图标和文本添加到水平布局
+        hbox.addWidget(text_label, 0, Qt.AlignRight)
+        hbox.addWidget(icon_label, 0, Qt.AlignLeft)
+
+        # 设置整体布局
+        lay = QVBoxLayout(self.corner_button)
+        lay.setContentsMargins(10, 0, 0, 0)
+        lay.addWidget(container)
+
+        # 添加点击事件处理
+        self.corner_button.clicked.connect(self._on_corner_button_clicked)
 
 
 class ConsoleWidget(QWidget):

@@ -96,7 +96,7 @@ class LineEditDelegate(QStyledItemDelegate):
             self.updateBackground(editor, index)
 
             # 更新model数据
-            index.model().setData(index, converted_value, Qt.EditRole)
+            index.model().setData(index, converted_value, Qt.UserRole)
 
         except ValueError:
             # 验证失败，显示错误状态
@@ -108,7 +108,7 @@ class LineEditDelegate(QStyledItemDelegate):
             editor.update()
 
     def setEditorData(self, editor, index):
-        value = index.model().data(index, Qt.DisplayRole)
+        value = index.model().data(index, Qt.UserRole)
         editor.setText(f'{value:.5g}' if isinstance(value, float) else str(value))
         self._update_editor_state(editor, modified=False)
 
