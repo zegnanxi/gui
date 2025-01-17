@@ -44,8 +44,6 @@ class CheckboxDelegate(QStyledItemDelegate):
         value = index.model().data(index, Qt.UserRole)
         checkbox = editor.findChild(QCheckBox)
         if checkbox:
-            # 添加调试信息
-            print(f"setEditorData at {index.row()},{index.column()} with value: {value}")
             checkbox.setChecked(self._convert_to_bool(value))
 
     def setEditorReadOnly(self, editor, readonly):

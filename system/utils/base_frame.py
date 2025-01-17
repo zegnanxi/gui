@@ -556,7 +556,6 @@ class BaseTable(QTableView):
     def _on_corner_button_clicked(self):
         """处理corner button的点击事件，切换表格的显示模式（水平/竖直）"""
         # 保存当前数据
-        print(f'_on_corner_button_clicked self.model.rowCount(): {self.model.rowCount()}')
         current_data = []
         if self.table_properties.get('horizontal'):
             # 从水平模式切换到竖直模式
@@ -578,22 +577,22 @@ class BaseTable(QTableView):
         # 2. 切换模式并重建表格
         self.table_properties['horizontal'] = not self.table_properties.get('horizontal')
 
-        # 清除所有的 indexWidget 和 delegates
-        for row in range(self.model.rowCount()):
-            for col in range(self.model.columnCount()):
-                index = self.model.index(row, col)
-                # 清除 indexWidget
-                widget = self.indexWidget(index)
-                if widget:
-                    self.setIndexWidget(index, None)
-                # 清除 delegates
-                if self.table_properties.get('horizontal'):
-                    self.setItemDelegateForColumn(col, None)
-                else:
-                    self.setItemDelegateForRow(row, None)
+        # # 清除所有的 indexWidget 和 delegates
+        # for row in range(self.model.rowCount()):
+        #     for col in range(self.model.columnCount()):
+        #         index = self.model.index(row, col)
+        #         # 清除 indexWidget
+        #         widget = self.indexWidget(index)
+        #         if widget:
+        #             self.setIndexWidget(index, None)
+        #         # 清除 delegates
+        #         if self.table_properties.get('horizontal'):
+        #             self.setItemDelegateForColumn(col, None)
+        #         else:
+        #             self.setItemDelegateForRow(row, None)
 
-        self.model.setRowCount(0)
-        self.model.setColumnCount(0)
+        # self.model.setRowCount(0)
+        # self.model.setColumnCount(0)
 
         # 重新创建模型
         self.model = BaseTableModel(self.columns, self.table_properties.get('horizontal'))
